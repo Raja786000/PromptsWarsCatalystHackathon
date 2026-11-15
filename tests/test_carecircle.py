@@ -280,5 +280,48 @@ class CareCircleTestCase(unittest.TestCase):
             self.assertEqual(summary['patient_name'], 'Margaret Wilson')
             self.assertIn('adherence_rate', summary)
 
+    def test_10_adherence_metrics_group_dose_logs_by_medication(self):
+        """Verify grouped medication totals and exclude future scheduled doses."""
+        with app.app_context():
+            patient = Patient(name='Adherence Metrics Test Patient')
+            db.session.add(patient)
+            db.session.flush()
+
+            medications = [
+                Medication(patient_id=patient.id, name='Test Medication A', times='08:00'),
+                Medication(patient_id=patient.id, name='Test Medication B', times='20:00')
+            ]
+            db.session.add_all(medications)
+            db.session.flush()
+
+            today = date.today().isoformat()
+            db.session.add_all([
+                DoseLog(patient_id=patient.id, medication_id=medications[0].id,
+                        scheduled_for=f'{today}T08:00', status='Taken'),
+                DoseLog(patient_id=patient.id, medication_id=medications[0].id,
+                        scheduled_for=f'{today}T12:00', status='Skipped'),
+                DoseLog(patient_id=patient.id, medication_id=medications[1].id,
+                        scheduled_for=f'{today}T18:00', status='Missed'),
+                DoseLog(patient_id=patient.id, medication_id=medications[1].id,
+                        scheduled_for=f'{today}T20:00', status='Taken'),
+                DoseLog(patient_id=patient.id, medication_id=medications[1].id,
+                        scheduled_for=f'{today}T23:59', status='Scheduled')
+            ])
+            db.session.flush()
+
+            try:
+                metrics = get_adherence_metrics(patient.id, days=7)
+                by_name = {item['name']: item for item in metrics['med_stats']}
+
+                self.assertEqual(metrics['total_due'], 4)
+                self.assertEqual(metrics['taken'], 2)
+                self.assertEqual(metrics['missed'], 1)
+                self.assertEqual(metrics['skipped'], 1)
+                self.assertEqual(by_name['Test Medication A']['total'], 2)
+                self.assertEqual(by_name['Test Medication B']['total'], 2)
+            finally:
+                db.session.delete(patient)
+                db.session.commit()
+
 if __name__ == '__main__':
     unittest.main()

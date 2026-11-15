@@ -24,10 +24,16 @@ def get_adherence_metrics(patient_id, days=7):
         DoseLog.scheduled_for <= end_str
     ).all()
 
-    taken = sum(1 for log in logs if log.status == 'Taken')
-    skipped = sum(1 for log in logs if log.status == 'Skipped')
-    missed = sum(1 for log in logs if log.status == 'Missed')
-    scheduled = sum(1 for log in logs if log.status == 'Scheduled')
+    status_counts = defaultdict(int)
+    medication_counts = defaultdict(lambda: defaultdict(int))
+    for log in logs:
+        if log.status in ('Taken', 'Skipped', 'Missed'):
+            status_counts[log.status] += 1
+            medication_counts[log.medication_id][log.status] += 1
+
+    taken = status_counts['Taken']
+    skipped = status_counts['Skipped']
+    missed = status_counts['Missed']
 
     total_past_due = taken + skipped + missed
     overall_rate = round((taken / total_past_due * 100), 1) if total_past_due > 0 else 100.0
@@ -66,10 +72,10 @@ def get_adherence_metrics(patient_id, days=7):
     meds = Medication.query.filter_by(patient_id=patient_id, active=True).all()
     med_stats = []
     for med in meds:
-        med_logs = [l for l in logs if l.medication_id == med.id]
-        m_taken = sum(1 for l in med_logs if l.status == 'Taken')
-        m_missed = sum(1 for l in med_logs if l.status == 'Missed')
-        m_skipped = sum(1 for l in med_logs if l.status == 'Skipped')
+        med_counts = medication_counts[med.id]
+        m_taken = med_counts['Taken']
+        m_missed = med_counts['Missed']
+        m_skipped = med_counts['Skipped']
         m_total = m_taken + m_missed + m_skipped
         m_rate = round((m_taken / m_total * 100), 1) if m_total > 0 else 100.0
         med_stats.append({
