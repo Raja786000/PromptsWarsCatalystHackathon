@@ -1,0 +1,317 @@
+{% extends 'base.html' %}
+
+{% block title %}Adherence Analytics & Care Intelligence — CareCircle{% endblock %}
+{% block breadcrumb %}Adherence Analytics{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-title">
+    <h1>Medication Adherence & Care Intelligence</h1>
+    <p>Transparent clinical adherence tracking, pattern detection, and executive summaries for {{ patient.name }}.</p>
+  </div>
+  <div class="page-header-actions no-print">
+    <button class="btn btn-secondary" onclick="window.print()">
+      <span>🖨️</span> Print Clinical Report
+    </button>
+  </div>
+</div>
+
+<!-- Adherence KPI Metrics Bar -->
+<div class="metrics-grid">
+  <div class="metric-card">
+    <div class="metric-header">
+      <span class="metric-title">7-Day Adherence Rate</span>
+      <div class="metric-icon-wrap metric-icon-mint">📈</div>
+    </div>
+    <div class="metric-value">
+      {{ metrics_7d.overall_rate }}%
+    </div>
+    <div class="progress-bar-wrap">
+      <div class="progress-bar-fill" style="width: {{ metrics_7d.overall_rate }}%;"></div>
+    </div>
+    <div class="metric-subtitle">
+      <strong>{{ metrics_7d.taken }}</strong> taken of <strong>{{ metrics_7d.total_due }}</strong> past scheduled doses
+    </div>
+  </div>
+
+  <div class="metric-card">
+    <div class="metric-header">
+      <span class="metric-title">Taken vs Missed</span>
+      <div class="metric-icon-wrap metric-icon-blue">💊</div>
+    </div>
+    <div class="metric-value" style="font-size: 1.6rem;">
+      <span style="color: var(--forest-700);">{{ metrics_7d.taken }} Taken</span>
+    </div>
+    <div class="metric-subtitle" style="margin-top: 1rem;">
+      <span style="color: var(--danger-text);">{{ metrics_7d.missed }} Missed</span> · 
+      <span style="color: var(--warning-text);">{{ metrics_7d.skipped }} Skipped</span>
+    </div>
+  </div>
+
+  <div class="metric-card">
+    <div class="metric-header">
+      <span class="metric-title">Active Prescriptions</span>
+      <div class="metric-icon-wrap metric-icon-amber">📋</div>
+    </div>
+    <div class="metric-value">
+      {{ metrics_7d.med_stats|length }}
+    </div>
+    <div class="metric-subtitle" style="margin-top: 1rem;">
+      All monitored in active care plan
+    </div>
+  </div>
+
+  <div class="metric-card">
+    <div class="metric-header">
+      <span class="metric-title">Calculation Method</span>
+      <div class="metric-icon-wrap metric-icon-rose">ℹ️</div>
+    </div>
+    <div style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4; margin-top: 0.5rem;">
+      Formula: <code>Taken ÷ (Taken + Missed + Skipped)</code>. Future scheduled doses are excluded until their window closes.
+    </div>
+  </div>
+</div>
+
+<!-- Rule-Based Smart Care Intelligence Insights -->
+<div class="card" style="margin-bottom: 2rem;">
+  <div class="card-header">
+    <div>
+      <h3 class="card-title">
+        <span>💡</span> Care Intelligence & Pattern Observations
+      </h3>
+      <div class="card-subtitle">Transparent rule-based insights computed directly from recorded dose history</div>
+    </div>
+    <span class="badge badge-scheduled">Rule-Based Intelligence</span>
+  </div>
+
+  <div class="card-body">
+    {% if care_insights %}
+      {% for insight in care_insights %}
+      <div class="insight-item {{ insight.type }}">
+        <div style="font-size: 1.3rem;">
+          {% if insight.type == 'positive' %}🌟{% elif insight.type == 'warning' %}⚠️{% else %}ℹ️{% endif %}
+        </div>
+        <div class="insight-content">
+          <h4 style="color: var(--forest-900);">{{ insight.title }}</h4>
+          <p>{{ insight.text }}</p>
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <p style="color: var(--text-muted);">No unusual variance detected. Routines are progressing consistently.</p>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Adherence Visualizations: Chart.js Charts -->
+<div class="dashboard-grid-2col">
+  <!-- Chart 1: 7-Day Adherence Trend -->
+  <div class="chart-container-card">
+    <h3 style="font-size: 1.1rem; color: var(--forest-900); margin-bottom: 0.35rem;">
+      7-Day Daily Adherence Trend (%)
+    </h3>
+    <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 1rem;">
+      Daily percentage of prescribed doses taken on schedule.
+    </p>
+    <div style="height: 250px; position: relative;">
+      <canvas id="trendChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Chart 2: Dose Status Breakdown -->
+  <div class="chart-container-card">
+    <h3 style="font-size: 1.1rem; color: var(--forest-900); margin-bottom: 0.35rem;">
+      Dose Status Distribution
+    </h3>
+    <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 1rem;">
+      Proportion of Taken, Skipped, and Missed medication doses.
+    </p>
+    <div style="height: 250px; position: relative;">
+      <canvas id="distributionChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- Chart 3: Medication-Wise Breakdown -->
+<div class="card" style="margin-bottom: 2rem;">
+  <div class="card-header">
+    <h3 class="card-title">
+      <span>💊</span> Individual Medication Adherence Breakdown
+    </h3>
+  </div>
+  <div style="padding: 1.5rem;">
+    <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+      {% for med in metrics_7d.med_stats %}
+      <div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem; font-size: 0.92rem;">
+          <div>
+            <strong>{{ med.name }}</strong> 
+            <span style="color: var(--text-muted); font-size: 0.82rem;">({{ med.dosage or 'Prescribed' }})</span>
+          </div>
+          <div style="font-weight: 700; color: var(--forest-800);">
+            {{ med.rate }}% <small style="color: var(--text-muted); font-weight: normal;">({{ med.taken }}/{{ med.total }} doses)</small>
+          </div>
+        </div>
+        <div class="progress-bar-wrap" style="height: 8px;">
+          <div class="progress-bar-fill" style="width: {{ med.rate }}%; background: {% if med.rate >= 90 %}var(--forest-600){% elif med.rate >= 75 %}var(--warning-text){% else %}var(--danger-text){% endif %};"></div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- Printable Clinical Care Summary Section -->
+<div class="card" id="careSummaryReport" style="border: 2px solid var(--forest-700);">
+  <div class="card-header" style="background-color: var(--forest-900); color: white;">
+    <div>
+      <h3 class="card-title" style="color: white;">
+        <span>📋</span> Weekly Clinical Care Summary & Handover
+      </h3>
+      <div class="card-subtitle" style="color: var(--sage-200);">
+        Structured report for physician consultations, care conferences, and caregiver handovers
+      </div>
+    </div>
+    <button class="btn btn-secondary btn-sm no-print" onclick="copyCareSummary()">
+      📋 Copy Text
+    </button>
+  </div>
+
+  <div class="card-body" id="summaryTextContent">
+    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid var(--border-subtle); padding-bottom: 1rem; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 1rem;">
+      <div>
+        <h2 style="font-size: 1.35rem; color: var(--forest-900);">Patient: {{ weekly_summary.patient_name }}</h2>
+        <div style="font-size: 0.85rem; color: var(--text-muted);">
+          DOB: {{ weekly_summary.dob or 'N/A' }} · Allergies: <strong>{{ weekly_summary.allergies or 'None listed' }}</strong>
+        </div>
+      </div>
+      <div style="text-align: right;">
+        <div style="font-weight: 700; color: var(--forest-800);">Period: {{ weekly_summary.period_start }} – {{ weekly_summary.period_end }}</div>
+        <div style="font-size: 0.82rem; color: var(--text-muted);">Primary Clinician: {{ weekly_summary.primary_physician or 'Unspecified' }}</div>
+      </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; background: var(--surface-muted); padding: 1rem; border-radius: var(--radius-md);">
+      <div>
+        <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700;">Recorded Adherence</div>
+        <div style="font-size: 1.35rem; font-weight: 800; color: var(--forest-900);">{{ weekly_summary.adherence_rate }}%</div>
+      </div>
+      <div>
+        <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700;">Doses Taken</div>
+        <div style="font-size: 1.35rem; font-weight: 800; color: var(--forest-700);">{{ weekly_summary.doses_taken }} / {{ weekly_summary.total_due }}</div>
+      </div>
+      <div>
+        <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700;">Average Blood Pressure</div>
+        <div style="font-size: 1.2rem; font-weight: 800; color: var(--text-primary);">{{ weekly_summary.avg_blood_pressure }}</div>
+      </div>
+    </div>
+
+    <!-- Active Medications List in Summary -->
+    <h4 style="font-size: 1rem; margin-bottom: 0.6rem; color: var(--forest-900);">Active Medication Regimen:</h4>
+    <ul style="padding-left: 1.25rem; font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 1.25rem; line-height: 1.6;">
+      {% for med in weekly_summary.medications %}
+      <li>
+        <strong>{{ med.name }}</strong> ({{ med.dosage or 'Prescribed dosage' }}): 7-Day Adherence: {{ med.rate }}% ({{ med.taken }}/{{ med.total }} doses taken).
+      </li>
+      {% endfor %}
+    </ul>
+
+    <!-- Upcoming Appointments in Summary -->
+    <h4 style="font-size: 1rem; margin-bottom: 0.6rem; color: var(--forest-900);">Upcoming Doctor Appointments:</h4>
+    <ul style="padding-left: 1.25rem; font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 1.25rem; line-height: 1.6;">
+      {% for appt in weekly_summary.upcoming_appointments %}
+      <li>
+        <strong>{{ appt.doctor }}</strong> ({{ appt.specialty or 'Clinic' }}) on {{ appt.appt_at.replace('T', ' at ') }} at {{ appt.location or 'Clinic' }}. Reason: {{ appt.reason or 'Consultation' }}.
+      </li>
+      {% else %}
+      <li style="color: var(--text-muted);">No upcoming appointments scheduled in the next 14 days.</li>
+      {% endfor %}
+    </ul>
+
+    <div style="margin-top: 1.5rem; font-size: 0.75rem; color: var(--text-muted); border-top: 1px solid var(--border-subtle); padding-top: 0.75rem;">
+      Generated securely by CareCircle Healthcare Management Platform for {{ weekly_summary.patient_name }}. Report Date: {{ weekly_summary.report_date }}.
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Copy Care Summary to Clipboard
+function copyCareSummary() {
+  const content = document.getElementById('summaryTextContent');
+  if (content) {
+    const text = content.innerText;
+    navigator.clipboard.writeText(text).then(() => {
+      alert("Weekly Clinical Care Summary copied to clipboard!");
+    }).catch(err => {
+      alert("Unable to copy automatically. Please select text manually.");
+    });
+  }
+}
+
+// Chart.js Visualizations
+document.addEventListener('DOMContentLoaded', () => {
+  if (typeof Chart === 'undefined') return;
+
+  // 1. Trend Chart
+  const trendCtx = document.getElementById('trendChart');
+  if (trendCtx) {
+    const labels = {{ chart_trend_labels|tojson }};
+    const dataPoints = {{ chart_trend_values|tojson }};
+
+    new Chart(trendCtx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Adherence %',
+          data: dataPoints,
+          borderColor: '#194d3d',
+          backgroundColor: 'rgba(82, 183, 136, 0.15)',
+          fill: true,
+          tension: 0.35,
+          pointBackgroundColor: '#194d3d',
+          pointRadius: 4
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: { min: 0, max: 100, ticks: { callback: v => v + '%' } },
+          x: { grid: { display: false } }
+        },
+        plugins: {
+          legend: { display: false }
+        }
+      }
+    });
+  }
+
+  // 2. Status Distribution Chart
+  const distCtx = document.getElementById('distributionChart');
+  if (distCtx) {
+    new Chart(distCtx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Taken', 'Missed', 'Skipped'],
+        datasets: [{
+          data: [{{ metrics_7d.taken }}, {{ metrics_7d.missed }}, {{ metrics_7d.skipped }}],
+          backgroundColor: ['#236551', '#991b1b', '#92400e'],
+          borderWidth: 2,
+          borderColor: '#ffffff'
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom' }
+        }
+      }
+    });
+  }
+});
+</script>
+{% endblock %}

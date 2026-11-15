@@ -1,0 +1,268 @@
+{% extends 'base.html' %}
+
+{% block title %}Health Records & Document Vault — CareCircle{% endblock %}
+{% block breadcrumb %}Health Vault{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-title">
+    <h1>Health Records & Document Vault</h1>
+    <p>Secure clinical profile, emergency contacts, allergy safeguards, and medical documents for {{ patient.name }}.</p>
+  </div>
+  {% if can_manage %}
+  <div class="page-header-actions">
+    <button class="btn btn-primary" onclick="openModal('uploadDocModal')">
+      <span>📄</span> Upload Document
+    </button>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Privacy & Security Notice -->
+<div class="notice-box">
+  <div class="notice-icon">🔒</div>
+  <div class="notice-content">
+    <h4>Confidential Healthcare Vault</h4>
+    <p>Documents and medical records are stored in an isolated, authenticated vault accessible only to verified members of {{ patient.name }}'s care circle. Download links are protected by server-side authorization.</p>
+  </div>
+</div>
+
+<div class="dashboard-grid-2col">
+  <!-- Left Column: Patient Profile & Clinical Details -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <h3 class="card-title">
+          <span>👤</span> Clinical Health Profile
+        </h3>
+        <div class="card-subtitle">Essential medical identifiers & contacts</div>
+      </div>
+      <span class="badge badge-taken">Verified</span>
+    </div>
+
+    <div class="card-body">
+      {% if can_manage %}
+      <form method="post" action="{{ url_for('records') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="form_type" value="profile">
+
+        <div class="form-row">
+          <div>
+            <label class="form-label" for="profName">Full Name *</label>
+            <input class="form-control" id="profName" name="name" value="{{ patient.name }}" required>
+          </div>
+          <div>
+            <label class="form-label" for="profDob">Date of Birth</label>
+            <input class="form-control" type="date" id="profDob" name="dob" value="{{ patient.dob or '' }}">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div>
+            <label class="form-label" for="profBlood">Blood Group</label>
+            <input class="form-control" id="profBlood" name="blood_group" value="{{ patient.blood_group or '' }}" placeholder="e.g. O+">
+          </div>
+          <div>
+            <label class="form-label" for="profDoctor">Primary Physician</label>
+            <input class="form-control" id="profDoctor" name="primary_physician" value="{{ patient.primary_physician or '' }}" placeholder="Dr. Name & Clinic">
+          </div>
+        </div>
+
+        <div class="form-group" style="padding: 0.85rem; background-color: var(--danger-bg); border: 1px solid var(--danger-border); border-radius: var(--radius-md);">
+          <label class="form-label" for="profAllergies" style="color: var(--danger-text);">
+            ⚠️ Known Allergies & Adverse Reactions *
+          </label>
+          <input class="form-control" id="profAllergies" name="allergies" value="{{ patient.allergies or '' }}" placeholder="List known medication and food allergies" style="border-color: var(--danger-border);">
+          <div class="form-helper" style="color: var(--danger-text);">Visible to all caregivers and clinical providers to avoid contraindications.</div>
+        </div>
+
+        <div class="form-row">
+          <div>
+            <label class="form-label" for="profEmergName">Emergency Contact Name</label>
+            <input class="form-control" id="profEmergName" name="emergency_contact_name" value="{{ patient.emergency_contact_name or '' }}" placeholder="e.g. Jamie Wilson">
+          </div>
+          <div>
+            <label class="form-label" for="profEmergRelation">Relationship</label>
+            <input class="form-control" id="profEmergRelation" name="emergency_contact_relation" value="{{ patient.emergency_contact_relation or '' }}" placeholder="e.g. Daughter">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="profEmergPhone">Emergency Phone Number</label>
+          <input class="form-control" id="profEmergPhone" name="emergency_contact" value="{{ patient.emergency_contact or '' }}" placeholder="+1 (555) 019-2831">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="profNotes">Caregiver Preferences & Mobility Notes</label>
+          <textarea class="form-control" id="profNotes" name="notes" rows="4">{{ patient.notes or '' }}</textarea>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-full">
+          Save Health Profile Changes
+        </button>
+      </form>
+
+      {% else %}
+      <!-- Read-Only Profile View for Viewers -->
+      <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+        <div>
+          <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">Full Name</div>
+          <div style="font-size: 1.1rem; font-weight: 700;">{{ patient.name }}</div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+          <div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">Date of Birth</div>
+            <div style="font-weight: 600;">{{ patient.dob or 'Not specified' }}</div>
+          </div>
+          <div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">Blood Group</div>
+            <div style="font-weight: 600;">{{ patient.blood_group or 'Not specified' }}</div>
+          </div>
+        </div>
+
+        <div style="padding: 1rem; background-color: var(--danger-bg); border-radius: var(--radius-md); border: 1px solid var(--danger-border);">
+          <div style="font-size: 0.75rem; color: var(--danger-text); font-weight: 700; text-transform: uppercase;">Known Allergies</div>
+          <div style="font-weight: 700; color: var(--danger-text); font-size: 1rem;">{{ patient.allergies or 'None reported' }}</div>
+        </div>
+
+        <div>
+          <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">Emergency Contact</div>
+          <div style="font-weight: 700;">{{ patient.emergency_contact_name or 'Contact' }} ({{ patient.emergency_contact_relation or 'Family' }})</div>
+          {% if patient.emergency_contact %}
+          <a href="tel:{{ patient.emergency_contact }}" style="font-size: 0.95rem; font-weight: 600; color: var(--forest-700);">
+            📞 {{ patient.emergency_contact }}
+          </a>
+          {% endif %}
+        </div>
+
+        <div>
+          <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">Primary Clinician</div>
+          <div style="font-weight: 600;">{{ patient.primary_physician or 'Not recorded' }}</div>
+        </div>
+
+        <div>
+          <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">Care Notes</div>
+          <p style="font-size: 0.9rem; margin-top: 0.25rem;">{{ patient.notes or 'No notes provided.' }}</p>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Right Column: Medical Document Vault -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <h3 class="card-title">
+          <span>📑</span> Document Vault ({{ documents|length }})
+        </h3>
+        <div class="card-subtitle">Encrypted laboratory results, reports & prescriptions</div>
+      </div>
+      {% if can_manage %}
+      <button class="btn btn-secondary btn-sm" onclick="openModal('uploadDocModal')">
+        + Upload
+      </button>
+      {% endif %}
+    </div>
+
+    <div>
+      {% if documents %}
+        {% for doc in documents %}
+        <div style="padding: 1.25rem; border-bottom: 1px solid var(--border-subtle); display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem;">
+          <div style="display: flex; gap: 1rem; align-items: flex-start;">
+            <div style="width: 42px; height: 42px; border-radius: var(--radius-md); background: var(--sage-100); color: var(--forest-800); display: grid; place-items: center; font-size: 1.2rem; flex-shrink: 0;">
+              📄
+            </div>
+            <div>
+              <h4 style="font-size: 0.98rem; color: var(--forest-900); margin-bottom: 0.2rem;">{{ doc.title }}</h4>
+              <div style="font-size: 0.78rem; color: var(--text-muted);">
+                <span class="badge badge-scheduled" style="font-size: 0.72rem;">{{ doc.category }}</span>
+                <span>·</span>
+                <span>{{ (doc.file_size / 1024)|round(1) }} KB</span>
+                <span>·</span>
+                <span>{{ doc.created_at.strftime('%b %d, %Y') }}</span>
+              </div>
+              {% if doc.notes %}
+              <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.35rem;">
+                {{ doc.notes }}
+              </div>
+              {% endif %}
+            </div>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0;">
+            <a class="btn btn-secondary btn-sm" href="{{ url_for('download_document', doc_id=doc.id) }}" target="_blank" title="Download Document">
+              Download
+            </a>
+            {% if can_manage %}
+            <form method="post" action="{{ url_for('delete_document', doc_id=doc.id) }}" style="margin: 0;">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn btn-danger btn-sm" type="submit" onclick="return confirm('Delete this medical document?')">
+                Delete
+              </button>
+            </form>
+            {% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="empty-state">
+          <div class="empty-state-icon">📄</div>
+          <h3>Document Vault is empty</h3>
+          <p>Store blood tests, prescriptions, and clinic summaries securely in one place.</p>
+          {% if can_manage %}
+          <button class="btn btn-primary btn-sm" onclick="openModal('uploadDocModal')">+ Upload Document</button>
+          {% endif %}
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Upload Medical Document -->
+<div class="modal-backdrop" id="uploadDocModal">
+  <div class="modal-dialog">
+    <div class="modal-header">
+      <h3 class="modal-title">Upload Medical Document</h3>
+      <button class="modal-close-btn" onclick="closeModal('uploadDocModal')">&times;</button>
+    </div>
+    <form method="post" action="{{ url_for('upload_document') }}" enctype="multipart/form-data">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label" for="docFile">Select File * <small>(PDF, PNG, JPG, TXT up to 10MB)</small></label>
+          <input class="form-control" type="file" id="docFile" name="document_file" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="docTitle">Document Title *</label>
+          <input class="form-control" id="docTitle" name="title" placeholder="e.g. Comprehensive Metabolic Panel (CMP)" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="docCategory">Document Category</label>
+          <select class="form-control" id="docCategory" name="category">
+            <option value="Lab Report">Lab Report (Blood, Urine, Metabolic)</option>
+            <option value="Prescription">Prescription Order</option>
+            <option value="Medical Report">Physician Consultation Summary</option>
+            <option value="Discharge Summary">Hospital Discharge Summary</option>
+            <option value="Insurance / ID">Insurance & Identification</option>
+            <option value="Other">Other Medical Record</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="docNotes">Notes / Clinician Findings</label>
+          <textarea class="form-control" id="docNotes" name="notes" placeholder="e.g. Blood test reviewed by Dr. Santos; electrolytes normal."></textarea>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('uploadDocModal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Upload to Vault</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

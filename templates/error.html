@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+
+{% block title %}Access Restricted — CareCircle{% endblock %}
+{% block breadcrumb %}Notice{% endblock %}
+
+{% block content %}
+<div class="empty-state" style="max-width: 580px; margin: 4rem auto; padding: 3rem 2rem;">
+  <div class="empty-state-icon" style="width: 68px; height: 68px; font-size: 1.8rem; background: var(--danger-bg); color: var(--danger-text);">
+    ⚠️
+  </div>
+  <h2 style="font-size: 1.5rem; color: var(--forest-900); margin-bottom: 0.5rem;">
+    {{ code }} · {% if code == 403 %}Permission Restricted{% elif code == 404 %}Page Not Found{% else %}Notice{% endif %}
+  </h2>
+  <p style="font-size: 0.95rem; color: var(--text-secondary); line-height: 1.6; margin-bottom: 1.5rem;">
+    {{ message or 'You do not have authorization to view or edit this healthcare record.' }}
+  </p>
+
+  <div style="display: flex; justify-content: center; gap: 0.75rem;">
+    <a class="btn btn-primary" href="{{ url_for('dashboard') }}">Return to Overview</a>
+    <a class="btn btn-secondary" href="javascript:history.back()">Go Back</a>
+  </div>
+</div>
+{% endblock %}

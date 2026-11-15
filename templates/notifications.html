@@ -1,0 +1,168 @@
+{% extends 'base.html' %}
+
+{% block title %}Notification Center & Preferences — CareCircle{% endblock %}
+{% block breadcrumb %}Notifications{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-title">
+    <h1>Notification Center</h1>
+    <p>Real-time alerts, proactive medication reminders, and delivery preferences for {{ user.name }}.</p>
+  </div>
+  <div class="page-header-actions">
+    <form method="post" action="{{ url_for('mark_all_notifications_read') }}" style="margin: 0;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-secondary btn-sm" type="submit">
+        ✓ Mark All as Read
+      </button>
+    </form>
+  </div>
+</div>
+
+<div class="dashboard-grid-2col">
+  <!-- Left Column: Notification Feed -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <h3 class="card-title">
+          <span>🔔</span> In-App Notifications
+        </h3>
+        <div class="card-subtitle">Recent system and care circle notifications</div>
+      </div>
+      {% if unread_count > 0 %}
+      <span class="badge badge-missed">{{ unread_count }} Unread</span>
+      {% else %}
+      <span class="badge badge-taken">All Caught Up</span>
+      {% endif %}
+    </div>
+
+    <div>
+      {% if notifications %}
+        {% for notif in notifications %}
+        <div style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border-subtle); display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; {% if not notif.is_read %}background-color: var(--sage-50);{% endif %}">
+          <div style="display: flex; gap: 0.85rem; align-items: flex-start;">
+            <div style="font-size: 1.3rem; margin-top: 0.15rem;">
+              {% if notif.category == 'dose' %}💊
+              {% elif notif.category == 'appointment' %}📅
+              {% elif notif.category == 'task' %}📋
+              {% elif notif.category == 'circle' %}👥
+              {% else %}ℹ️{% endif %}
+            </div>
+
+            <div>
+              <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.2rem;">
+                <h4 style="font-size: 0.98rem; color: var(--forest-900);">{{ notif.title }}</h4>
+                {% if not notif.is_read %}
+                <span class="badge badge-scheduled" style="font-size: 0.7rem; padding: 0.15rem 0.45rem;">New</span>
+                {% endif %}
+              </div>
+              <p style="font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 0.4rem; line-height: 1.5;">
+                {{ notif.message }}
+              </p>
+              <div style="font-size: 0.78rem; color: var(--text-muted);">
+                {{ notif.created_at.strftime('%a, %b %d at %I:%M %p') }}
+              </div>
+            </div>
+          </div>
+
+          <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 0.4rem; flex-shrink: 0;">
+            {% if notif.action_url %}
+            <a class="btn btn-secondary btn-sm" href="{{ notif.action_url }}" style="font-size: 0.78rem; padding: 0.3rem 0.65rem;">
+              View →
+            </a>
+            {% endif %}
+
+            {% if not notif.is_read %}
+            <form method="post" action="{{ url_for('mark_notification_read', notif_id=notif.id) }}" style="margin: 0;">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" style="background: none; border: none; font-size: 0.75rem; color: var(--text-muted); cursor: pointer; text-decoration: underline;">
+                Dismiss
+              </button>
+            </form>
+            {% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="empty-state">
+          <div class="empty-state-icon">🔔</div>
+          <h3>No notifications yet</h3>
+          <p>Alerts for upcoming medication times and care events will appear here.</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Right Column: Delivery Preferences -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <h3 class="card-title">
+          <span>⚙️</span> Proactive Delivery Settings
+        </h3>
+        <div class="card-subtitle">Configure email and reminder window preferences</div>
+      </div>
+    </div>
+
+    <div class="card-body">
+      <form method="post" action="{{ url_for('update_notification_preferences') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div style="margin-bottom: 1.25rem;">
+          <h4 style="font-size: 0.95rem; margin-bottom: 0.5rem; color: var(--forest-900);">Email Notification Types</h4>
+          <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+            <label class="custom-checkbox">
+              <input type="checkbox" name="email_upcoming_dose" {{ 'checked' if pref and pref.email_upcoming_dose else '' }}>
+              <div>
+                <span style="font-weight: 600; font-size: 0.9rem;">Upcoming Medication Reminders</span>
+                <div style="font-size: 0.78rem; color: var(--text-muted);">Proactive email dispatched prior to scheduled dose times.</div>
+              </div>
+            </label>
+
+            <label class="custom-checkbox">
+              <input type="checkbox" name="email_missed_dose" {{ 'checked' if pref and pref.email_missed_dose else '' }}>
+              <div>
+                <span style="font-weight: 600; font-size: 0.9rem;">Missed Dose Alerts</span>
+                <div style="font-size: 0.78rem; color: var(--text-muted);">Alert dispatched if dose is unconfirmed after the grace period.</div>
+              </div>
+            </label>
+
+            <label class="custom-checkbox">
+              <input type="checkbox" name="email_appointments" {{ 'checked' if pref and pref.email_appointments else '' }}>
+              <div>
+                <span style="font-weight: 600; font-size: 0.9rem;">Doctor Appointment Alerts</span>
+                <div style="font-size: 0.78rem; color: var(--text-muted);">Email alert approximately 24 hours prior to scheduled clinic visits.</div>
+              </div>
+            </label>
+
+            <label class="custom-checkbox">
+              <input type="checkbox" name="email_tasks" {{ 'checked' if pref and pref.email_tasks else '' }}>
+              <div>
+                <span style="font-weight: 600; font-size: 0.9rem;">Care Task Assignments</span>
+                <div style="font-size: 0.78rem; color: var(--text-muted);">Notification when a task is delegated or completed.</div>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <div class="form-group" style="padding-top: 1rem; border-top: 1px solid var(--border-subtle);">
+          <label class="form-label" for="leadTimeSelect">Reminder Lead Time</label>
+          <select class="form-control" id="leadTimeSelect" name="lead_time_minutes">
+            <option value="10" {{ 'selected' if pref and pref.lead_time_minutes == 10 else '' }}>10 minutes before dose</option>
+            <option value="15" {{ 'selected' if not pref or pref.lead_time_minutes == 15 else '' }}>15 minutes before dose (Recommended)</option>
+            <option value="30" {{ 'selected' if pref and pref.lead_time_minutes == 30 else '' }}>30 minutes before dose</option>
+          </select>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-full">
+          Save Notification Preferences
+        </button>
+      </form>
+
+      <div style="margin-top: 1.5rem; padding: 0.85rem; background-color: var(--surface-muted); border-radius: var(--radius-md); font-size: 0.78rem; color: var(--text-muted); line-height: 1.5;">
+        <strong>SMTP Email Delivery Notice:</strong> In-app alerts are active immediately. Email dispatching uses the background <code>reminder_worker.py</code> process. The application remains fully functional even when SMTP credentials are not configured.
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

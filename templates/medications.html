@@ -1,0 +1,388 @@
+{% extends 'base.html' %}
+
+{% block title %}Medication Management — CareCircle{% endblock %}
+{% block breadcrumb %}Medications{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-title">
+    <h1>Medication Management</h1>
+    <p>Comprehensive medication routines, schedules, and dose records for {{ patient.name }}.</p>
+  </div>
+  {% if can_manage %}
+  <div class="page-header-actions">
+    <button class="btn btn-outline-primary" onclick="openModal('ocrScanModal')">
+      <span>📷</span> Scan Prescription (OCR)
+    </button>
+    <button class="btn btn-primary" onclick="openModal('addMedModal')">
+      <span>+</span> Add Medication Schedule
+    </button>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Safety Notice Banner -->
+<div class="notice-box">
+  <div class="notice-icon">🛡️</div>
+  <div class="notice-content">
+    <h4>Clinician Prescription Alignment</h4>
+    <p>CareCircle organizes the exact medication schedule entered by authorized members. It does not independently prescribe, adjust doses, or replace clinician advice. Always consult {{ patient.name }}'s physician or pharmacist for medication questions.</p>
+  </div>
+</div>
+
+<!-- Tabs & Search Filter -->
+<div class="card" style="margin-bottom: 1.5rem;">
+  <div style="padding: 1rem 1.5rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
+    <div style="display: flex; gap: 0.5rem;">
+      <a class="btn btn-sm {{ 'btn-primary' if not show_discontinued else 'btn-secondary' }}" href="{{ url_for('medications') }}">
+        Active Care Plan ({{ active_meds|length }})
+      </a>
+      <a class="btn btn-sm {{ 'btn-primary' if show_discontinued else 'btn-secondary' }}" href="{{ url_for('medications', show_inactive=1) }}">
+        Discontinued History ({{ inactive_meds|length }})
+      </a>
+    </div>
+
+    <div style="width: 280px;">
+      <input type="text" id="medSearchInput" class="form-control" placeholder="Search medications by name…" oninput="filterMeds(this.value)">
+    </div>
+  </div>
+</div>
+
+<!-- Medications Grid -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem;" id="medCardsContainer">
+  {% set current_list = inactive_meds if show_discontinued else active_meds %}
+  {% if current_list %}
+    {% for med in current_list %}
+    <div class="card med-card-item" data-name="{{ med.name.lower() }}">
+      <div class="card-header" style="background-color: var(--surface-card);">
+        <div>
+          <h3 style="font-size: 1.15rem; color: var(--forest-900); margin-bottom: 0.2rem;">
+            {{ med.name }}
+          </h3>
+          <span style="font-size: 0.85rem; color: var(--forest-700); font-weight: 600;">
+            {{ med.dosage or 'Prescribed dosage' }} · {{ med.frequency or 'Daily' }}
+          </span>
+        </div>
+        <span class="badge badge-{{ 'taken' if med.active else 'neutral' }}">
+          {{ 'Active' if med.active else 'Discontinued' }}
+        </span>
+      </div>
+
+      <div class="card-body">
+        <!-- Scheduled Times Badges -->
+        <div style="margin-bottom: 1rem;">
+          <div style="font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.35rem;">
+            Reminder Times
+          </div>
+          <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
+            {% for t in med.times.split(',') %}
+            <span class="badge badge-scheduled" style="font-size: 0.82rem; padding: 0.35rem 0.65rem;">
+              ◷ {{ t.strip() }}
+            </span>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- Clinician & Instructions -->
+        <div style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem; line-height: 1.5;">
+          <div><strong>Prescribed By:</strong> {{ med.prescribed_by or 'Not specified' }}</div>
+          {% if med.instructions %}
+          <div style="margin-top: 0.35rem;"><strong>Instructions:</strong> {{ med.instructions }}</div>
+          {% endif %}
+          {% if med.notes %}
+          <div style="margin-top: 0.35rem; color: var(--text-muted); font-size: 0.8rem;"><strong>Notes:</strong> {{ med.notes }}</div>
+          {% endif %}
+        </div>
+
+        <!-- Refill Counter & Start Date -->
+        <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 0.75rem; border-top: 1px solid var(--border-subtle); font-size: 0.8rem; color: var(--text-muted);">
+          <span>Started: {{ med.start_date or 'Ongoing' }}</span>
+          <span class="badge badge-neutral" title="Estimated doses remaining before prescription refill">
+            Refills: {{ med.refill_remaining or 30 }} left
+          </span>
+        </div>
+      </div>
+
+      {% if can_manage %}
+      <div class="card-footer" style="display: flex; justify-content: space-between; align-items: center;">
+        <button class="btn btn-secondary btn-sm" onclick="openEditMedModal('{{ med.id }}', '{{ med.name }}', '{{ med.dosage or '' }}', '{{ med.frequency or 'Daily' }}', '{{ med.times }}', '{{ med.instructions or '' }}', '{{ med.prescribed_by or '' }}', '{{ med.refill_remaining or 30 }}', '{{ med.notes or '' }}')">
+          Edit Schedule
+        </button>
+
+        <form method="post" action="{{ url_for('toggle_med_status', med_id=med.id) }}" style="margin: 0;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          {% if med.active %}
+          <button class="btn btn-danger btn-sm" type="submit" onclick="return confirm('Discontinue {{ med.name }} from active routine?')">
+            Discontinue
+          </button>
+          {% else %}
+          <button class="btn btn-success btn-sm" type="submit">
+            Reactivate
+          </button>
+          {% endif %}
+        </form>
+      </div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  {% else %}
+    <div class="empty-state" style="grid-column: 1 / -1;">
+      <div class="empty-state-icon">💊</div>
+      <h3>No {{ 'discontinued' if show_discontinued else 'active' }} medications</h3>
+      <p>Organize Margaret's medication plan to establish automated reminders and adherence tracking.</p>
+      {% if can_manage and not show_discontinued %}
+      <button class="btn btn-primary" onclick="openModal('addMedModal')">+ Add Medication Schedule</button>
+      {% endif %}
+    </div>
+  {% endif %}
+</div>
+
+<!-- Modal 1: Add Medication Schedule -->
+<div class="modal-backdrop" id="addMedModal">
+  <div class="modal-dialog">
+    <div class="modal-header">
+      <h3 class="modal-title">Add Medication Schedule</h3>
+      <button class="modal-close-btn" onclick="closeModal('addMedModal')">&times;</button>
+    </div>
+    <form method="post" action="{{ url_for('medications') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label" for="addMedName">Medication Name *</label>
+          <input class="form-control" id="addMedName" name="name" placeholder="e.g. Amlodipine" required>
+        </div>
+
+        <div class="form-row">
+          <div>
+            <label class="form-label" for="addMedDosage">Dosage</label>
+            <input class="form-control" id="addMedDosage" name="dosage" placeholder="e.g. 5 mg">
+          </div>
+          <div>
+            <label class="form-label" for="addMedFreq">Frequency</label>
+            <select class="form-control" id="addMedFreq" name="frequency">
+              <option value="Daily">Daily</option>
+              <option value="Twice daily">Twice daily</option>
+              <option value="Three times daily">Three times daily</option>
+              <option value="Every evening">Every evening</option>
+              <option value="As needed (PRN)">As needed (PRN)</option>
+              <option value="Weekly">Weekly</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="addMedTimes">
+            Reminder Times * <small>(24-hour HH:MM; comma-separated for multiple)</small>
+          </label>
+          <input class="form-control" id="addMedTimes" name="times" placeholder="08:00, 20:00" required>
+          <div class="form-helper">Example: Enter "09:00" for single morning dose or "08:00, 20:00" for morning and evening.</div>
+        </div>
+
+        <div class="form-row">
+          <div>
+            <label class="form-label" for="addMedDoctor">Prescribing Doctor</label>
+            <input class="form-control" id="addMedDoctor" name="prescribed_by" placeholder="e.g. Dr. Sarah Chen">
+          </div>
+          <div>
+            <label class="form-label" for="addMedRefills">Doses Remaining in Pack</label>
+            <input class="form-control" type="number" id="addMedRefills" name="refill_remaining" value="30">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div>
+            <label class="form-label" for="addMedStart">Start Date</label>
+            <input class="form-control" type="date" id="addMedStart" name="start_date">
+          </div>
+          <div>
+            <label class="form-label" for="addMedEnd">End Date <small>(Optional)</small></label>
+            <input class="form-control" type="date" id="addMedEnd" name="end_date">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="addMedInstructions">Instructions & Precautions</label>
+          <input class="form-control" id="addMedInstructions" name="instructions" placeholder="e.g. Take with breakfast and full glass of water.">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="addMedNotes">Additional Clinical Notes</label>
+          <textarea class="form-control" id="addMedNotes" name="notes" placeholder="e.g. Monitor blood pressure weekly; report dizziness."></textarea>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('addMedModal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save Medication Schedule</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal 2: Edit Medication Schedule -->
+<div class="modal-backdrop" id="editMedModal">
+  <div class="modal-dialog">
+    <div class="modal-header">
+      <h3 class="modal-title">Edit Medication Schedule</h3>
+      <button class="modal-close-btn" onclick="closeModal('editMedModal')">&times;</button>
+    </div>
+    <form id="editMedForm" method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label" for="editMedName">Medication Name *</label>
+          <input class="form-control" id="editMedName" name="name" required>
+        </div>
+
+        <div class="form-row">
+          <div>
+            <label class="form-label" for="editMedDosage">Dosage</label>
+            <input class="form-control" id="editMedDosage" name="dosage">
+          </div>
+          <div>
+            <label class="form-label" for="editMedFreq">Frequency</label>
+            <select class="form-control" id="editMedFreq" name="frequency">
+              <option value="Daily">Daily</option>
+              <option value="Twice daily">Twice daily</option>
+              <option value="Three times daily">Three times daily</option>
+              <option value="Every evening">Every evening</option>
+              <option value="As needed (PRN)">As needed (PRN)</option>
+              <option value="Weekly">Weekly</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="editMedTimes">Reminder Times * (24-hour format, comma-separated)</label>
+          <input class="form-control" id="editMedTimes" name="times" required>
+        </div>
+
+        <div class="form-row">
+          <div>
+            <label class="form-label" for="editMedDoctor">Prescribing Doctor</label>
+            <input class="form-control" id="editMedDoctor" name="prescribed_by">
+          </div>
+          <div>
+            <label class="form-label" for="editMedRefills">Doses Remaining</label>
+            <input class="form-control" type="number" id="editMedRefills" name="refill_remaining">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="editMedInstructions">Instructions</label>
+          <input class="form-control" id="editMedInstructions" name="instructions">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="editMedNotes">Notes</label>
+          <textarea class="form-control" id="editMedNotes" name="notes"></textarea>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('editMedModal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Update Schedule</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal 3: Prescription OCR Scanner Simulator -->
+<div class="modal-backdrop" id="ocrScanModal">
+  <div class="modal-dialog">
+    <div class="modal-header">
+      <h3 class="modal-title">Prescription OCR Scanner</h3>
+      <button class="modal-close-btn" onclick="closeModal('ocrScanModal')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 1rem;">
+        Upload a prescription document or image. Our OCR text analysis extracts the medicine details for human verification before adding them to {{ patient.name }}'s schedule.
+      </p>
+
+      <div style="border: 2px dashed var(--border-strong); padding: 2rem 1rem; border-radius: var(--radius-md); text-align: center; background: var(--surface-muted); margin-bottom: 1.25rem;">
+        <div style="font-size: 2rem; margin-bottom: 0.5rem;">📄</div>
+        <div style="font-weight: 600; margin-bottom: 0.25rem;">Select Prescription Photo or PDF</div>
+        <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">Supports JPG, PNG, PDF up to 10MB</div>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="simulatePrescriptionScan()">
+          ⚡ Run Interactive OCR Scanner Demo
+        </button>
+      </div>
+
+      <div id="ocrScanStatus" style="display: none; padding: 0.75rem 1rem; border-radius: var(--radius-md); background-color: var(--sage-100); color: var(--forest-900); font-size: 0.88rem; font-weight: 600; margin-bottom: 1rem;">
+      </div>
+
+      <!-- Human Verification Form (Populated by OCR) -->
+      <div id="ocrResultPreview" style="display: none;">
+        <h4 style="margin-bottom: 0.75rem; color: var(--forest-900); font-size: 1rem;">
+          Extracted Prescription Data — Please Verify:
+        </h4>
+        <form method="post" action="{{ url_for('medications') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          
+          <div class="form-group">
+            <label class="form-label">Verified Medication Name *</label>
+            <input class="form-control" id="ocrMedName" name="name" required>
+          </div>
+
+          <div class="form-row">
+            <div>
+              <label class="form-label">Verified Dosage</label>
+              <input class="form-control" id="ocrDosage" name="dosage">
+            </div>
+            <div>
+              <label class="form-label">Frequency</label>
+              <input class="form-control" id="ocrFrequency" name="frequency">
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div>
+              <label class="form-label">Verified Reminder Times *</label>
+              <input class="form-control" id="ocrTimes" name="times" required>
+            </div>
+            <div>
+              <label class="form-label">Doctor Name</label>
+              <input class="form-control" id="ocrPrescriber" name="prescribed_by">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Clinician Instructions</label>
+            <input class="form-control" id="ocrInstructions" name="instructions">
+          </div>
+
+          <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.25rem;">
+            <button type="button" class="btn btn-secondary" onclick="closeModal('ocrScanModal')">Cancel</button>
+            <button type="submit" class="btn btn-primary">Confirm & Add to Schedule</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function filterMeds(query) {
+  const q = query.toLowerCase().trim();
+  document.querySelectorAll('.med-card-item').forEach(card => {
+    const name = card.dataset.name || '';
+    card.style.display = name.includes(q) ? '' : 'none';
+  });
+}
+
+function openEditMedModal(id, name, dosage, freq, times, instructions, doctor, refills, notes) {
+  document.getElementById('editMedForm').action = `/medications/edit/${id}`;
+  document.getElementById('editMedName').value = name;
+  document.getElementById('editMedDosage').value = dosage;
+  document.getElementById('editMedFreq').value = freq;
+  document.getElementById('editMedTimes').value = times;
+  document.getElementById('editMedInstructions').value = instructions;
+  document.getElementById('editMedDoctor').value = doctor;
+  document.getElementById('editMedRefills').value = refills;
+  document.getElementById('editMedNotes').value = notes;
+  openModal('editMedModal');
+}
+</script>
+{% endblock %}

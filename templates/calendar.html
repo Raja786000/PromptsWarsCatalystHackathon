@@ -1,0 +1,142 @@
+{% extends 'base.html' %}
+
+{% block title %}Medication & Care Calendar — CareCircle{% endblock %}
+{% block breadcrumb %}Medication Calendar{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-title">
+    <h1>Medication & Care Calendar</h1>
+    <p>Comprehensive chronological view of medication doses, appointments, and care events for {{ patient.name }}.</p>
+  </div>
+  <div class="page-header-actions">
+    {% if can_manage %}
+    <a class="btn btn-secondary btn-sm" href="{{ url_for('appointments') }}">+ Add Appointment</a>
+    <a class="btn btn-primary btn-sm" href="{{ url_for('medications') }}">+ Add Medication</a>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Calendar Control Bar -->
+<div class="card" style="margin-bottom: 1.5rem;">
+  <div class="calendar-header-bar">
+    <div class="calendar-nav-controls">
+      <a class="btn btn-secondary btn-sm" href="{{ url_for('calendar', week_offset=week_offset - 1, view=view_mode) }}" title="Previous Week">
+        ← Previous
+      </a>
+      <a class="btn btn-secondary btn-sm" href="{{ url_for('calendar', week_offset=0, view=view_mode) }}">
+        Today
+      </a>
+      <a class="btn btn-secondary btn-sm" href="{{ url_for('calendar', week_offset=week_offset + 1, view=view_mode) }}" title="Next Week">
+        Next →
+      </a>
+      <h3 style="margin-left: 1rem; font-size: 1.15rem; color: var(--forest-900);">
+        {{ week_range_label }}
+      </h3>
+    </div>
+
+    <!-- View Modes Toggle -->
+    <div class="calendar-view-toggle">
+      <a class="calendar-view-btn {{ 'active' if view_mode == 'week' }}" href="{{ url_for('calendar', week_offset=week_offset, view='week') }}">
+        Weekly View
+      </a>
+      <a class="calendar-view-btn {{ 'active' if view_mode == 'day' }}" href="{{ url_for('calendar', week_offset=week_offset, view='day') }}">
+        Daily View
+      </a>
+    </div>
+  </div>
+
+  <!-- Legend Bar -->
+  <div style="padding: 0.65rem 1.5rem; background-color: var(--surface-muted); border-bottom: 1px solid var(--border-subtle); display: flex; align-items: center; gap: 1.25rem; font-size: 0.78rem; flex-wrap: wrap;">
+    <span style="font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Legend:</span>
+    <span style="display: flex; align-items: center; gap: 0.35rem;"><span class="badge badge-taken" style="width: 10px; height: 10px; padding: 0; border-radius: 50%;"></span> Taken</span>
+    <span style="display: flex; align-items: center; gap: 0.35rem;"><span class="badge badge-scheduled" style="width: 10px; height: 10px; padding: 0; border-radius: 50%;"></span> Scheduled</span>
+    <span style="display: flex; align-items: center; gap: 0.35rem;"><span class="badge badge-missed" style="width: 10px; height: 10px; padding: 0; border-radius: 50%;"></span> Missed</span>
+    <span style="display: flex; align-items: center; gap: 0.35rem;"><span class="badge badge-skipped" style="width: 10px; height: 10px; padding: 0; border-radius: 50%;"></span> Skipped</span>
+    <span style="display: flex; align-items: center; gap: 0.35rem;"><span class="badge badge-completed" style="width: 10px; height: 10px; padding: 0; border-radius: 50%; background: var(--forest-800);"></span> Medical Visit</span>
+  </div>
+
+  <!-- Weekly 7-Day Columns Grid -->
+  {% if view_mode == 'week' %}
+  <div class="calendar-week-grid">
+    {% for day in calendar_days %}
+    <div class="calendar-day-col">
+      <div class="calendar-day-header {{ 'is-today' if day.is_today }}">
+        <div class="calendar-day-title">{{ day.day_name }}</div>
+        <div class="calendar-day-number">{{ day.day_number }}</div>
+      </div>
+
+      <div class="calendar-events-wrap">
+        <!-- Medical Appointments on this day -->
+        {% for appt in day.appointments %}
+        <div class="cal-event-pill cal-event-appt" title="Doctor Visit: {{ appt.doctor }} at {{ appt.appt_at[11:16] }}">
+          <div style="font-size: 0.7rem; font-weight: 800;">🏥 {{ appt.appt_at[11:16] }}</div>
+          <div>{{ appt.doctor }}</div>
+        </div>
+        {% endfor %}
+
+        <!-- Medication Doses on this day -->
+        {% for dose in day.doses %}
+        <div class="cal-event-pill cal-event-{{ dose.status.lower() }}"
+             onclick="openDoseModal('{{ dose.med_id }}', '{{ dose.med_name }}', '{{ dose.scheduled_for }}', '{{ dose.status }}')"
+             title="{{ dose.med_name }} ({{ dose.dosage }}) at {{ dose.time_str }}. Status: {{ dose.status }}">
+          <div style="display: flex; justify-content: space-between; font-size: 0.7rem; opacity: 0.9;">
+            <span>{{ dose.time_str }}</span>
+            <span>{{ dose.status }}</span>
+          </div>
+          <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+            {{ dose.med_name }}
+          </div>
+        </div>
+        {% else %}
+          {% if not day.appointments %}
+          <div style="text-align: center; color: var(--text-muted); font-size: 0.75rem; padding: 1.5rem 0.25rem;">
+            No events
+          </div>
+          {% endif %}
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  {% else %}
+  <!-- Daily Single Day Expanded View -->
+  <div style="padding: 1.5rem;">
+    {% set today_day = calendar_days[0] %}
+    {% for day in calendar_days %}
+      {% if day.is_today or loop.first %}
+      <div style="margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between;">
+        <h3 style="font-size: 1.3rem; color: var(--forest-900);">
+          {{ day.full_date_label }}
+        </h3>
+        <span class="badge badge-scheduled">Daily Routine</span>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+        {% for dose in day.doses %}
+        <div class="dose-item-card" style="border: 1px solid var(--border-subtle); border-radius: var(--radius-md);">
+          <div class="dose-item-left">
+            <div class="dose-time-badge">◷ {{ dose.time_str }}</div>
+            <div class="dose-med-info">
+              <h4>{{ dose.med_name }}</h4>
+              <div class="dose-med-details">{{ dose.dosage }} · Scheduled routine</div>
+            </div>
+          </div>
+          <div class="dose-actions">
+            <span class="badge badge-{{ dose.status.lower() }}">{{ dose.status }}</span>
+            {% if can_manage %}
+            <button class="btn btn-secondary btn-sm" onclick="openDoseModal('{{ dose.med_id }}', '{{ dose.med_name }}', '{{ dose.scheduled_for }}', 'Taken')">
+              Update
+            </button>
+            {% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,248 @@
+{% extends 'base.html' %}
+
+{% block title %}Medical Appointments — CareCircle{% endblock %}
+{% block breadcrumb %}Appointments{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-title">
+    <h1>Medical Appointments</h1>
+    <p>Coordinate doctor appointments, clinic visits, and specialist consultations for {{ patient.name }}.</p>
+  </div>
+  {% if can_manage %}
+  <div class="page-header-actions">
+    <button class="btn btn-primary" onclick="openModal('addApptModal')">
+      <span>+</span> Schedule New Visit
+    </button>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Tabs & Status Filter -->
+<div class="card" style="margin-bottom: 1.5rem;">
+  <div style="padding: 1rem 1.5rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
+    <div style="display: flex; gap: 0.5rem;">
+      <a class="btn btn-sm {{ 'btn-primary' if not show_past else 'btn-secondary' }}" href="{{ url_for('appointments') }}">
+        Upcoming Visits ({{ upcoming_list|length }})
+      </a>
+      <a class="btn btn-sm {{ 'btn-primary' if show_past else 'btn-secondary' }}" href="{{ url_for('appointments', past=1) }}">
+        Past & Completed ({{ past_list|length }})
+      </a>
+    </div>
+
+    <div style="width: 280px;">
+      <input type="text" id="apptSearchInput" class="form-control" placeholder="Search by doctor or clinic…" oninput="filterAppts(this.value)">
+    </div>
+  </div>
+</div>
+
+<!-- Appointments List -->
+<div style="display: flex; flex-direction: column; gap: 1rem;" id="apptListContainer">
+  {% set current_items = past_list if show_past else upcoming_list %}
+  {% if current_items %}
+    {% for a in current_items %}
+    <div class="card appt-card-item" data-search="{{ a.doctor.lower() }} {{ (a.specialty or '').lower() }} {{ (a.location or '').lower() }}">
+      <div style="padding: 1.5rem; display: flex; align-items: flex-start; justify-content: space-between; gap: 1.5rem; flex-wrap: wrap;">
+        <!-- Date Tile & Clinic Info -->
+        <div style="display: flex; align-items: flex-start; gap: 1.25rem; flex: 1; min-width: 280px;">
+          <div class="appt-date-box" style="width: 58px; height: 60px;">
+            <span class="month" style="font-size: 0.72rem;">{{ a.appt_at[5:7]|int }}</span>
+            <span class="day" style="font-size: 1.4rem;">{{ a.appt_at[8:10] }}</span>
+          </div>
+
+          <div style="flex: 1; min-width: 0;">
+            <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.25rem;">
+              <h3 style="font-size: 1.2rem; color: var(--forest-900);">{{ a.doctor }}</h3>
+              <span class="badge badge-{{ 'completed' if a.status == 'Completed' else ('missed' if a.status == 'Cancelled' else 'scheduled') }}">
+                {{ a.status }}
+              </span>
+            </div>
+            
+            <div style="font-size: 0.88rem; font-weight: 600; color: var(--forest-700); margin-bottom: 0.35rem;">
+              {{ a.specialty or 'Healthcare Provider' }}
+            </div>
+
+            <div style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 0.5rem;">
+              <span>🕒 {{ a.appt_at[11:16] }}</span>
+              <span>·</span>
+              <span>📍 {{ a.location or 'Location not specified' }}</span>
+            </div>
+
+            {% if a.reason %}
+            <div style="font-size: 0.88rem; color: var(--text-secondary); margin-top: 0.4rem;">
+              <strong>Purpose:</strong> {{ a.reason }}
+            </div>
+            {% endif %}
+
+            {% if a.notes %}
+            <div style="font-size: 0.82rem; color: var(--text-muted); margin-top: 0.25rem; font-style: italic;">
+              Preparation notes: {{ a.notes }}
+            </div>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Appointment Actions -->
+        {% if can_manage %}
+        <div style="display: flex; align-items: center; gap: 0.5rem; align-self: center;">
+          {% if a.status == 'Scheduled' %}
+          <form method="post" action="{{ url_for('update_appt_status', appt_id=a.id, status='Completed') }}" style="margin: 0;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-success btn-sm" type="submit">
+              ✓ Mark Completed
+            </button>
+          </form>
+
+          <form method="post" action="{{ url_for('update_appt_status', appt_id=a.id, status='Cancelled') }}" style="margin: 0;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-secondary btn-sm" type="submit" onclick="return confirm('Cancel this appointment?')">
+              Cancel
+            </button>
+          </form>
+          {% endif %}
+
+          <button class="btn btn-secondary btn-sm" onclick="openEditApptModal('{{ a.id }}', '{{ a.doctor }}', '{{ a.specialty or '' }}', '{{ a.location or '' }}', '{{ a.appt_at }}', '{{ a.reason or '' }}', '{{ a.notes or '' }}')">
+            Edit
+          </button>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  {% else %}
+    <div class="empty-state">
+      <div class="empty-state-icon">📅</div>
+      <h3>No {{ 'past' if show_past else 'upcoming' }} appointments found</h3>
+      <p>Keep healthcare visits synchronized so the entire circle is prepared.</p>
+      {% if can_manage and not show_past %}
+      <button class="btn btn-primary" onclick="openModal('addApptModal')">+ Schedule New Visit</button>
+      {% endif %}
+    </div>
+  {% endif %}
+</div>
+
+<!-- Modal 1: Add Appointment -->
+<div class="modal-backdrop" id="addApptModal">
+  <div class="modal-dialog">
+    <div class="modal-header">
+      <h3 class="modal-title">Schedule Doctor Appointment</h3>
+      <button class="modal-close-btn" onclick="closeModal('addApptModal')">&times;</button>
+    </div>
+    <form method="post" action="{{ url_for('appointments') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="modal-body">
+        <div class="form-row">
+          <div>
+            <label class="form-label" for="addApptDoctor">Doctor / Clinician Name *</label>
+            <input class="form-control" id="addApptDoctor" name="doctor" placeholder="e.g. Dr. Sarah Chen" required>
+          </div>
+          <div>
+            <label class="form-label" for="addApptSpecialty">Medical Specialty</label>
+            <input class="form-control" id="addApptSpecialty" name="specialty" placeholder="e.g. Cardiology">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div>
+            <label class="form-label" for="addApptDateTime">Appointment Date & Time *</label>
+            <input class="form-control" type="datetime-local" id="addApptDateTime" name="appt_at" required>
+          </div>
+          <div>
+            <label class="form-label" for="addApptLocation">Clinic / Hospital Location</label>
+            <input class="form-control" id="addApptLocation" name="location" placeholder="e.g. Riverside Medical Centre, Room 304">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="addApptReason">Reason for Consultation</label>
+          <input class="form-control" id="addApptReason" name="reason" placeholder="e.g. Routine 6-month blood pressure review & ECG">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="addApptNotes">Preparation & Escort Instructions</label>
+          <textarea class="form-control" id="addApptNotes" name="notes" placeholder="e.g. Fast 8 hours prior; family member needs to provide ride."></textarea>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('addApptModal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Schedule Appointment</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal 2: Edit Appointment -->
+<div class="modal-backdrop" id="editApptModal">
+  <div class="modal-dialog">
+    <div class="modal-header">
+      <h3 class="modal-title">Edit Appointment Details</h3>
+      <button class="modal-close-btn" onclick="closeModal('editApptModal')">&times;</button>
+    </div>
+    <form id="editApptForm" method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="modal-body">
+        <div class="form-row">
+          <div>
+            <label class="form-label" for="editApptDoctor">Doctor Name *</label>
+            <input class="form-control" id="editApptDoctor" name="doctor" required>
+          </div>
+          <div>
+            <label class="form-label" for="editApptSpecialty">Specialty</label>
+            <input class="form-control" id="editApptSpecialty" name="specialty">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div>
+            <label class="form-label" for="editApptDateTime">Date & Time *</label>
+            <input class="form-control" type="datetime-local" id="editApptDateTime" name="appt_at" required>
+          </div>
+          <div>
+            <label class="form-label" for="editApptLocation">Location</label>
+            <input class="form-control" id="editApptLocation" name="location">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="editApptReason">Reason for Consultation</label>
+          <input class="form-control" id="editApptReason" name="reason">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="editApptNotes">Preparation Notes</label>
+          <textarea class="form-control" id="editApptNotes" name="notes"></textarea>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('editApptModal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save Changes</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function filterAppts(query) {
+  const q = query.toLowerCase().trim();
+  document.querySelectorAll('.appt-card-item').forEach(card => {
+    const text = card.dataset.search || '';
+    card.style.display = text.includes(q) ? '' : 'none';
+  });
+}
+
+function openEditApptModal(id, doctor, specialty, location, apptAt, reason, notes) {
+  document.getElementById('editApptForm').action = `/appointments/edit/${id}`;
+  document.getElementById('editApptDoctor').value = doctor;
+  document.getElementById('editApptSpecialty').value = specialty;
+  document.getElementById('editApptLocation').value = location;
+  document.getElementById('editApptDateTime').value = apptAt;
+  document.getElementById('editApptReason').value = reason;
+  document.getElementById('editApptNotes').value = notes;
+  openModal('editApptModal');
+}
+</script>
+{% endblock %}

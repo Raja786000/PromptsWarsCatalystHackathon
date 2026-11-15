@@ -1,0 +1,386 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard — CareCircle{% endblock %}
+{% block breadcrumb %}Overview{% endblock %}
+
+{% block content %}
+<!-- Welcome Hero Banner -->
+<div class="welcome-hero">
+  <div class="welcome-hero-content">
+    <div class="welcome-eyebrow">
+      <span>✳</span> Connected Healthcare Space · {{ today_str }}
+    </div>
+    <h1>Good {{ greeting_time }}, {{ user.name.split()[0] }}.</h1>
+    <p>
+      Managing care for <strong>{{ patient.name }}</strong>. 
+      {% if user.role == 'elder' %}
+      You are at the center of your daily healthcare routines and decisions.
+      {% elif can_manage %}
+      You have <strong>Editor</strong> permissions to coordinate medications and appointments.
+      {% else %}
+      You have <strong>Viewer</strong> access to stay informed and supportive.
+      {% endif %}
+    </p>
+
+    <div class="welcome-hero-actions">
+      <!-- Voice Assistant Read Aloud Trigger for Older Adults -->
+      <button class="voice-read-pill" id="voiceReadScheduleBtn" type="button" aria-label="Read today's schedule aloud">
+        <span>🔊</span> Read Today’s Plan Aloud
+      </button>
+
+      {% if can_manage %}
+      <a class="btn btn-secondary btn-sm" href="{{ url_for('medications') }}">
+        + Add Medication
+      </a>
+      <a class="btn btn-secondary btn-sm" href="{{ url_for('appointments') }}">
+        + Schedule Visit
+      </a>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Hidden Semantic Text Block for Speech Synthesis Voice Reader -->
+<div id="voiceScheduleContent" style="display: none;" aria-hidden="true">
+  Good {{ greeting_time }}, {{ user.name.split()[0] }}. Here is your CareCircle daily routine for {{ patient.name }}.
+  Today there are {{ today_total_doses }} scheduled medication times. {{ today_taken_doses }} have been confirmed as taken.
+  {% for item in today_schedule %}
+  At {{ item.time_formatted }}, {{ item.med.name }}, dosage {{ item.med.dosage or 'as directed' }}. Status is {{ item.status }}.
+  {% endfor %}
+  {% if upcoming_appts %}
+  You have an upcoming medical appointment with {{ upcoming_appts[0].doctor }}, on {{ upcoming_appts[0].appt_at.replace('T', ' at ') }}.
+  {% endif %}
+</div>
+
+<!-- Actionable Alerts Banner (Overdue doses or upcoming visits) -->
+{% if overdue_doses %}
+<div class="notice-box" style="background-color: var(--danger-bg); border-color: var(--danger-border);">
+  <div class="notice-icon" style="color: var(--danger-text);">⚠️</div>
+  <div class="notice-content">
+    <h4 style="color: var(--danger-text);">Attention: {{ overdue_doses|length }} medication dose{{ 's' if overdue_doses|length > 1 else '' }} may be overdue</h4>
+    <p style="color: var(--danger-text);">
+      {% for d in overdue_doses %}
+      <strong>{{ d.med.name }}</strong> (Scheduled for {{ d.time }}){{ ', ' if not loop.last else '.' }}
+      {% endfor %}
+      Please verify with {{ patient.name }} and record the status below.
+    </p>
+  </div>
+</div>
+{% endif %}
+
+<!-- Key Metrics Overview Grid -->
+<div class="metrics-grid">
+  <!-- Today's Adherence -->
+  <div class="metric-card">
+    <div class="metric-header">
+      <span class="metric-title">Today's Adherence</span>
+      <div class="metric-icon-wrap metric-icon-mint">✓</div>
+    </div>
+    <div class="metric-value">
+      {{ today_adherence_rate }}%
+    </div>
+    <div class="progress-bar-wrap">
+      <div class="progress-bar-fill" style="width: {{ today_adherence_rate }}%;"></div>
+    </div>
+    <div class="metric-subtitle">
+      <strong>{{ today_taken_doses }}</strong> of <strong>{{ today_total_doses }}</strong> doses recorded taken
+    </div>
+  </div>
+
+  <!-- Active Medications -->
+  <div class="metric-card">
+    <div class="metric-header">
+      <span class="metric-title">Active Care Plan</span>
+      <div class="metric-icon-wrap metric-icon-blue">💊</div>
+    </div>
+    <div class="metric-value">
+      {{ active_meds_count }} <small>medicines</small>
+    </div>
+    <div class="metric-subtitle" style="margin-top: 1rem;">
+      <a href="{{ url_for('medications') }}" style="font-weight: 600;">Manage medications →</a>
+    </div>
+  </div>
+
+  <!-- Upcoming Appointments -->
+  <div class="metric-card">
+    <div class="metric-header">
+      <span class="metric-title">Medical Visits</span>
+      <div class="metric-icon-wrap metric-icon-amber">📅</div>
+    </div>
+    <div class="metric-value">
+      {{ upcoming_appts|length }} <small>ahead</small>
+    </div>
+    <div class="metric-subtitle" style="margin-top: 1rem;">
+      {% if upcoming_appts %}
+      Next: <strong>{{ upcoming_appts[0].doctor }}</strong> ({{ upcoming_appts[0].appt_at[8:10] }}/{{ upcoming_appts[0].appt_at[5:7] }})
+      {% else %}
+      No visits in the next 14 days
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Open Care Tasks -->
+  <div class="metric-card">
+    <div class="metric-header">
+      <span class="metric-title">Open Tasks</span>
+      <div class="metric-icon-wrap metric-icon-rose">📋</div>
+    </div>
+    <div class="metric-value">
+      {{ pending_tasks_count }} <small>pending</small>
+    </div>
+    <div class="metric-subtitle" style="margin-top: 1rem;">
+      <a href="{{ url_for('tasks') }}" style="font-weight: 600;">View care task list →</a>
+    </div>
+  </div>
+</div>
+
+<!-- Two-Column Primary Section: Today's Routine & Upcoming Appointments -->
+<div class="dashboard-grid-2col">
+  <!-- Today's Medication Routine -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <h3 class="card-title">
+          <span>💊</span> Today's Medication Schedule
+        </h3>
+        <div class="card-subtitle">{{ today_schedule|length }} routine doses scheduled today</div>
+      </div>
+      <a class="btn btn-secondary btn-sm" href="{{ url_for('medications') }}">Full Plan →</a>
+    </div>
+
+    <div style="padding: 0;">
+      {% if today_schedule %}
+        {% for item in today_schedule %}
+        <div class="dose-item-card">
+          <div class="dose-item-left">
+            <div class="dose-time-badge">
+              ◷ {{ item.time_formatted }}
+            </div>
+            <div class="dose-med-info">
+              <h4>{{ item.med.name }}</h4>
+              <div class="dose-med-details">
+                <strong>{{ item.med.dosage or 'Prescribed dose' }}</strong> 
+                {% if item.med.instructions %} · {{ item.med.instructions }}{% endif %}
+              </div>
+              {% if item.log and item.log.note %}
+              <div style="font-size: 0.78rem; color: var(--forest-700); margin-top: 0.2rem; font-style: italic;">
+                Note: "{{ item.log.note }}"
+              </div>
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="dose-actions">
+            {% if item.status == 'Taken' %}
+              <span class="badge badge-taken">✓ Taken</span>
+              {% if can_manage %}
+              <button class="btn btn-secondary btn-sm" onclick="openDoseModal('{{ item.med.id }}', '{{ item.med.name }}', '{{ item.scheduled_for }}', 'Skipped')" title="Change status">
+                Edit
+              </button>
+              {% endif %}
+            {% elif item.status == 'Skipped' %}
+              <span class="badge badge-skipped">Skipped</span>
+              {% if can_manage %}
+              <button class="btn btn-secondary btn-sm" onclick="openDoseModal('{{ item.med.id }}', '{{ item.med.name }}', '{{ item.scheduled_for }}', 'Taken')" title="Mark as taken">
+                Take
+              </button>
+              {% endif %}
+            {% elif item.status == 'Missed' %}
+              <span class="badge badge-missed">Missed</span>
+              {% if can_manage %}
+              <button class="btn btn-primary btn-sm" onclick="openDoseModal('{{ item.med.id }}', '{{ item.med.name }}', '{{ item.scheduled_for }}', 'Taken')">
+                Log Taken
+              </button>
+              {% endif %}
+            {% else %}
+              <!-- Scheduled / Due -->
+              {% if can_manage %}
+              <button class="btn btn-success btn-sm" onclick="openDoseModal('{{ item.med.id }}', '{{ item.med.name }}', '{{ item.scheduled_for }}', 'Taken')">
+                ✓ Take
+              </button>
+              <button class="btn btn-secondary btn-sm" onclick="openDoseModal('{{ item.med.id }}', '{{ item.med.name }}', '{{ item.scheduled_for }}', 'Skipped')">
+                Skip
+              </button>
+              {% else %}
+              <span class="badge badge-scheduled">Scheduled</span>
+              {% endif %}
+            {% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="empty-state">
+          <div class="empty-state-icon">💊</div>
+          <h3>No medications scheduled today</h3>
+          <p>Add a medication to the care plan to establish Margaret's daily routine.</p>
+          {% if can_manage %}
+          <a class="btn btn-primary btn-sm" href="{{ url_for('medications') }}">+ Add Medication Schedule</a>
+          {% endif %}
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Upcoming Doctor Appointments & Quick Tasks -->
+  <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+    <!-- Appointments Card -->
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h3 class="card-title">
+            <span>📅</span> Upcoming Doctor Visits
+          </h3>
+          <div class="card-subtitle">Next clinical consultations</div>
+        </div>
+        <a class="btn btn-secondary btn-sm" href="{{ url_for('appointments') }}">All Visits →</a>
+      </div>
+
+      <div>
+        {% if upcoming_appts %}
+          {% for appt in upcoming_appts[:3] %}
+          <div class="appt-item-card">
+            <div class="appt-date-box">
+              <span class="month">{{ appt.appt_at[5:7]|int }}</span>
+              <span class="day">{{ appt.appt_at[8:10] }}</span>
+            </div>
+            <div style="flex: 1; min-width: 0;">
+              <h4 style="font-size: 0.98rem; margin-bottom: 0.15rem;">{{ appt.doctor }}</h4>
+              <div style="font-size: 0.82rem; color: var(--forest-700); font-weight: 600;">
+                {{ appt.specialty or 'Medical Appointment' }}
+              </div>
+              <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 0.2rem;">
+                ◷ {{ appt.appt_at[11:16] }} · {{ appt.location or 'Clinic' }}
+              </div>
+            </div>
+            <span class="badge badge-scheduled">{{ appt.status }}</span>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="empty-state" style="padding: 2rem 1rem;">
+            <p>No upcoming visits scheduled.</p>
+            {% if can_manage %}
+            <a class="btn btn-secondary btn-sm" href="{{ url_for('appointments') }}">+ Add Appointment</a>
+            {% endif %}
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Quick Care Tasks Card -->
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h3 class="card-title">
+            <span>📋</span> Priority Care Tasks
+          </h3>
+          <div class="card-subtitle">Coordination items for the circle</div>
+        </div>
+        <a class="btn btn-secondary btn-sm" href="{{ url_for('tasks') }}">Tasks →</a>
+      </div>
+
+      <div>
+        {% if priority_tasks %}
+          {% for task in priority_tasks[:3] %}
+          <div class="task-item-row">
+            <div>
+              <div class="task-title">{{ task.title }}</div>
+              <div class="task-meta">
+                <span>Due: {{ task.due_date or 'No date' }}</span>
+                <span>·</span>
+                <span>Assigned: {{ task.assignee.name.split()[0] if task.assignee else 'Unassigned' }}</span>
+              </div>
+            </div>
+            <span class="badge badge-{{ task.priority.lower() }}">{{ task.priority }}</span>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div style="padding: 1.5rem; text-align: center; color: var(--text-muted); font-size: 0.85rem;">
+            All care tasks are completed!
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Secondary Two-Column Section: Care Circle Roster & Recent Activity Audit -->
+<div class="dashboard-grid-2col" style="margin-bottom: 0;">
+  <!-- Care Circle Members -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <h3 class="card-title">
+          <span>👥</span> Authorized Care Circle
+        </h3>
+        <div class="card-subtitle">Trusted people coordinating for {{ patient.name }}</div>
+      </div>
+      <a class="btn btn-secondary btn-sm" href="{{ url_for('care_circle') }}">Manage Circle →</a>
+    </div>
+
+    <div style="padding: 1rem 1.5rem;">
+      <div style="display: flex; flex-direction: column; gap: 0.85rem;">
+        <!-- Elder Patient Profile -->
+        <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.6rem 0; border-bottom: 1px solid var(--border-subtle);">
+          <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <div class="user-avatar" style="background-color: var(--forest-800); color: white;">
+              {{ patient.name[:1]|upper }}
+            </div>
+            <div>
+              <div style="font-weight: 700; font-size: 0.92rem;">{{ patient.name }}</div>
+              <div style="font-size: 0.78rem; color: var(--text-muted);">Care Recipient · Owner</div>
+            </div>
+          </div>
+          <span class="badge badge-taken">Primary</span>
+        </div>
+
+        <!-- Connected Circle Members -->
+        {% for m in circle_members %}
+        <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.6rem 0; border-bottom: 1px solid var(--border-subtle);">
+          <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <div class="user-avatar">{{ m.user.name[:1]|upper }}</div>
+            <div>
+              <div style="font-weight: 600; font-size: 0.9rem;">{{ m.user.name }}</div>
+              <div style="font-size: 0.78rem; color: var(--text-muted);">{{ m.user.role|title }} · {{ m.user.email }}</div>
+            </div>
+          </div>
+          <span class="badge badge-{{ 'completed' if m.permission == 'editor' else 'neutral' }}">
+            {{ m.permission|title }}
+          </span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent Activity Audit Feed -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <h3 class="card-title">
+          <span>📑</span> Recent Care Activity
+        </h3>
+        <div class="card-subtitle">Audit trail of actions taken in this circle</div>
+      </div>
+      <span class="badge badge-neutral">Real-time</span>
+    </div>
+
+    <div class="activity-feed">
+      {% if recent_activities %}
+        {% for act in recent_activities %}
+        <div class="activity-item">
+          <div class="activity-dot"></div>
+          <div>
+            <div class="activity-text">{{ act.description }}</div>
+            <div class="activity-time">{{ act.created_at.strftime('%a, %b %d at %I:%M %p') }}</div>
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div style="padding: 2rem 1.5rem; text-align: center; color: var(--text-muted); font-size: 0.85rem;">
+          No activity logs recorded yet.
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

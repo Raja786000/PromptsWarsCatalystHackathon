@@ -1,0 +1,178 @@
+{% extends 'base.html' %}
+
+{% block title %}Health & Wellbeing Journal — CareCircle{% endblock %}
+{% block breadcrumb %}Health Journal{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-title">
+    <h1>Health & Wellbeing Journal</h1>
+    <p>Daily observations, vitals checks, reported symptoms, and caregiver handover notes for {{ patient.name }}.</p>
+  </div>
+  {% if can_manage %}
+  <div class="page-header-actions">
+    <button class="btn btn-primary" onclick="openModal('addJournalModal')">
+      <span>+</span> Add Wellbeing Entry
+    </button>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Safety Notice -->
+<div class="notice-box">
+  <div class="notice-icon">📝</div>
+  <div class="notice-content">
+    <h4>Observational Health Log</h4>
+    <p>Journal entries are shared among the care circle for observation and clinician reference. This feature records vital signs and reported wellbeing; it does not replace urgent emergency medical care or provide clinical diagnoses.</p>
+  </div>
+</div>
+
+<!-- Journal Timeline Feed -->
+<div style="display: flex; flex-direction: column; gap: 1.25rem;">
+  {% if entries %}
+    {% for entry in entries %}
+    <div class="card">
+      <div class="card-header" style="background-color: var(--surface-card);">
+        <div style="display: flex; align-items: center; gap: 0.75rem;">
+          <span style="font-size: 1.3rem;">
+            {% if entry.mood == 'Great' %}🌟
+            {% elif entry.mood == 'Good' %}😊
+            {% elif entry.mood == 'Neutral' %}😐
+            {% elif entry.mood == 'Tired' %}😴
+            {% else %}🤒{% endif %}
+          </span>
+          <div>
+            <h3 style="font-size: 1.05rem; color: var(--forest-900); margin-bottom: 0.15rem;">
+              Mood: {{ entry.mood }}
+            </h3>
+            <div style="font-size: 0.78rem; color: var(--text-muted);">
+              Recorded by <strong>{{ entry.author.name if entry.author else 'Caregiver' }}</strong> on {{ entry.created_at.strftime('%A, %B %d, %Y at %I:%M %p') }}
+            </div>
+          </div>
+        </div>
+
+        <span class="badge badge-neutral">{{ entry.created_at.strftime('%b %d') }}</span>
+      </div>
+
+      <div class="card-body">
+        <!-- Vitals Metrics Bar -->
+        {% if entry.systolic_bp or entry.heart_rate or entry.blood_sugar or entry.weight %}
+        <div style="display: flex; gap: 1.5rem; background: var(--surface-muted); padding: 0.85rem 1.25rem; border-radius: var(--radius-md); margin-bottom: 1rem; flex-wrap: wrap;">
+          {% if entry.systolic_bp and entry.diastolic_bp %}
+          <div>
+            <span style="font-size: 0.72rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">Blood Pressure</span>
+            <div style="font-size: 1.05rem; font-weight: 800; color: var(--forest-800);">{{ entry.systolic_bp }}/{{ entry.diastolic_bp }} <small style="font-size: 0.75rem; font-weight: normal;">mmHg</small></div>
+          </div>
+          {% endif %}
+
+          {% if entry.heart_rate %}
+          <div>
+            <span style="font-size: 0.72rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">Heart Rate</span>
+            <div style="font-size: 1.05rem; font-weight: 800; color: var(--forest-800);">{{ entry.heart_rate }} <small style="font-size: 0.75rem; font-weight: normal;">BPM</small></div>
+          </div>
+          {% endif %}
+
+          {% if entry.blood_sugar %}
+          <div>
+            <span style="font-size: 0.72rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">Blood Glucose</span>
+            <div style="font-size: 1.05rem; font-weight: 800; color: var(--forest-800);">{{ entry.blood_sugar }} <small style="font-size: 0.75rem; font-weight: normal;">mg/dL</small></div>
+          </div>
+          {% endif %}
+
+          {% if entry.weight %}
+          <div>
+            <span style="font-size: 0.72rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">Body Weight</span>
+            <div style="font-size: 1.05rem; font-weight: 800; color: var(--forest-800);">{{ entry.weight }} <small style="font-size: 0.75rem; font-weight: normal;">kg</small></div>
+          </div>
+          {% endif %}
+        </div>
+        {% endif %}
+
+        {% if entry.symptoms %}
+        <div style="font-size: 0.88rem; color: var(--danger-text); margin-bottom: 0.5rem; background: var(--danger-bg); padding: 0.6rem 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--danger-border);">
+          <strong>Reported Symptoms:</strong> {{ entry.symptoms }}
+        </div>
+        {% endif %}
+
+        {% if entry.notes %}
+        <p style="font-size: 0.95rem; color: var(--text-secondary); line-height: 1.6; margin: 0;">
+          {{ entry.notes }}
+        </p>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  {% else %}
+    <div class="empty-state">
+      <div class="empty-state-icon">📝</div>
+      <h3>No wellbeing entries recorded yet</h3>
+      <p>Log daily moods, blood pressure readings, and observations to track Margaret's health trajectory over time.</p>
+      {% if can_manage %}
+      <button class="btn btn-primary btn-sm" onclick="openModal('addJournalModal')">+ Add First Entry</button>
+      {% endif %}
+    </div>
+  {% endif %}
+</div>
+
+<!-- Modal: Add Wellbeing Entry -->
+<div class="modal-backdrop" id="addJournalModal">
+  <div class="modal-dialog">
+    <div class="modal-header">
+      <h3 class="modal-title">Record Wellbeing & Vitals</h3>
+      <button class="modal-close-btn" onclick="closeModal('addJournalModal')">&times;</button>
+    </div>
+    <form method="post" action="{{ url_for('journal') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label" for="journalMood">General Feeling / Mood</label>
+          <select class="form-control" id="journalMood" name="mood">
+            <option value="Great">🌟 Great — Energetic & Cheerful</option>
+            <option value="Good" selected>😊 Good — Normal & Content</option>
+            <option value="Neutral">😐 Neutral — Routine day</option>
+            <option value="Tired">😴 Tired — Sluggish or Low Energy</option>
+            <option value="Unwell">🤒 Unwell — Specific symptoms present</option>
+          </select>
+        </div>
+
+        <div class="form-row">
+          <div>
+            <label class="form-label" for="bpSys">Blood Pressure (Systolic)</label>
+            <input class="form-control" type="number" id="bpSys" name="systolic_bp" placeholder="e.g. 120">
+          </div>
+          <div>
+            <label class="form-label" for="bpDia">Blood Pressure (Diastolic)</label>
+            <input class="form-control" type="number" id="bpDia" name="diastolic_bp" placeholder="e.g. 80">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div>
+            <label class="form-label" for="heartRate">Heart Rate (BPM)</label>
+            <input class="form-control" type="number" id="heartRate" name="heart_rate" placeholder="e.g. 72">
+          </div>
+          <div>
+            <label class="form-label" for="bloodSugar">Blood Glucose (mg/dL)</label>
+            <input class="form-control" type="number" step="0.1" id="bloodSugar" name="blood_sugar" placeholder="e.g. 110">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="journalSymptoms">Any Symptoms Reported?</label>
+          <input class="form-control" id="journalSymptoms" name="symptoms" placeholder="e.g. Mild afternoon dizziness, dry mouth">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="journalNotes">Observations & Handover Notes</label>
+          <textarea class="form-control" id="journalNotes" name="notes" placeholder="e.g. Enjoyed walking in garden; appetite was good; took extra hydration."></textarea>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('addJournalModal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save Journal Entry</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

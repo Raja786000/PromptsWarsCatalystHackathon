@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+
+{% block title %}Account Profile & Settings — CareCircle{% endblock %}
+{% block breadcrumb %}Account Settings{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-title">
+    <h1>Account Profile & Security</h1>
+    <p>Manage your account credentials, contact information, and security preferences.</p>
+  </div>
+</div>
+
+<div class="dashboard-grid-2col">
+  <!-- Account Information -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <h3 class="card-title">
+          <span>👤</span> Personal Details
+        </h3>
+        <div class="card-subtitle">Your credentials in the CareCircle network</div>
+      </div>
+      <span class="badge badge-neutral">{{ user.role|title }}</span>
+    </div>
+
+    <div class="card-body">
+      <form method="post" action="{{ url_for('profile') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action_type" value="update_profile">
+
+        <div class="form-group">
+          <label class="form-label" for="userName">Full Name *</label>
+          <input class="form-control" id="userName" name="name" value="{{ user.name }}" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="userEmail">Email Address</label>
+          <input class="form-control" type="email" id="userEmail" value="{{ user.email }}" disabled style="background-color: var(--surface-muted); color: var(--text-muted);">
+          <div class="form-helper">Email is your primary login identifier.</div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="userPhone">Phone Number <small>(for SMS notifications)</small></label>
+          <input class="form-control" id="userPhone" name="phone" value="{{ user.phone or '' }}" placeholder="+1 (555) 014-9921">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Role in Care</label>
+          <input class="form-control" value="{{ user.role|title }}" disabled style="background-color: var(--surface-muted); color: var(--text-muted);">
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-full">
+          Save Profile Changes
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Security & Password Change -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <h3 class="card-title">
+          <span>🔒</span> Change Password
+        </h3>
+        <div class="card-subtitle">Keep your healthcare account secure</div>
+      </div>
+    </div>
+
+    <div class="card-body">
+      <form method="post" action="{{ url_for('profile') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action_type" value="change_password">
+
+        <div class="form-group">
+          <label class="form-label" for="currentPass">Current Password *</label>
+          <input class="form-control" type="password" id="currentPass" name="current_password" required placeholder="Enter current password">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="newPass">New Password * <small>(minimum 8 characters)</small></label>
+          <input class="form-control" type="password" id="newPass" name="new_password" minlength="8" required placeholder="Enter new password">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="confirmPass">Confirm New Password *</label>
+          <input class="form-control" type="password" id="confirmPass" name="confirm_password" minlength="8" required placeholder="Re-type new password">
+        </div>
+
+        <button type="submit" class="btn btn-secondary btn-full">
+          Update Account Password
+        </button>
+      </form>
+
+      <div style="margin-top: 1.5rem; padding: 1rem; background-color: var(--sage-50); border-radius: var(--radius-md); border: 1px solid var(--sage-200); font-size: 0.82rem; color: var(--forest-800);">
+        <strong>Demo Credentials Note:</strong> You can always reset to the standard demo password (<code>Care123!</code>) across all demonstration accounts.
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

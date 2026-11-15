@@ -1,0 +1,265 @@
+{% extends 'base.html' %}
+
+{% block title %}Care Circle Collaboration — CareCircle{% endblock %}
+{% block breadcrumb %}Care Circle{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-title">
+    <h1>Your Care Circle</h1>
+    <p>The trusted network of family members and caregivers coordinating care for {{ patient.name }}.</p>
+  </div>
+  {% if can_manage %}
+  <div class="page-header-actions">
+    <button class="btn btn-primary" onclick="openModal('inviteMemberModal')">
+      <span>+</span> Invite Trusted Member
+    </button>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Respecting Independence Notice -->
+<div class="notice-box">
+  <div class="notice-icon">🤝</div>
+  <div class="notice-content">
+    <h4>Dignity & Autonomy Principle</h4>
+    <p>{{ patient.name }} remains at the center of all healthcare choices. Access is granted only with consent. <strong>Viewers</strong> receive peace-of-mind visibility, while <strong>Editors</strong> are authorized to coordinate schedules and appointments.</p>
+  </div>
+</div>
+
+<!-- Center Stage: The Elder / Patient Primary Card -->
+<div class="card" style="margin-bottom: 2rem; border-left: 5px solid var(--forest-800);">
+  <div style="padding: 1.5rem 2rem; display: flex; align-items: center; justify-content: space-between; gap: 1.5rem; flex-wrap: wrap;">
+    <div style="display: flex; align-items: center; gap: 1.25rem;">
+      <div class="patient-context-avatar" style="width: 54px; height: 54px; font-size: 1.4rem;">
+        {{ patient.name[:1]|upper }}
+      </div>
+      <div>
+        <div style="font-size: 0.75rem; font-weight: 700; color: var(--forest-700); text-transform: uppercase; letter-spacing: 0.08em;">
+          Care Recipient & Profile Owner
+        </div>
+        <h2 style="font-size: 1.4rem; color: var(--forest-900);">{{ patient.name }}</h2>
+        <div style="font-size: 0.85rem; color: var(--text-muted);">
+          DOB: {{ patient.dob or '1948-04-12' }} · Allergies: <strong>{{ patient.allergies or 'None' }}</strong>
+        </div>
+      </div>
+    </div>
+
+    <div style="display: flex; gap: 1rem; align-items: center;">
+      <span class="badge badge-taken" style="font-size: 0.85rem; padding: 0.4rem 0.85rem;">
+        ● Circle Owner
+      </span>
+      <a class="btn btn-secondary btn-sm" href="{{ url_for('records') }}">
+        View Medical Profile →
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- Active Members Table -->
+<div class="card" style="margin-bottom: 2rem;">
+  <div class="card-header">
+    <div>
+      <h3 class="card-title">
+        <span>👥</span> Connected Circle Members ({{ members|length }})
+      </h3>
+      <div class="card-subtitle">Verified users with authorized access to this care space</div>
+    </div>
+  </div>
+
+  <div style="overflow-x: auto;">
+    <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem;">
+      <thead>
+        <tr style="border-bottom: 1px solid var(--border-subtle); background-color: var(--surface-muted); color: var(--text-muted); font-size: 0.78rem; text-transform: uppercase;">
+          <th style="padding: 0.85rem 1.5rem;">Member</th>
+          <th style="padding: 0.85rem 1rem;">Account Role</th>
+          <th style="padding: 0.85rem 1rem;">Permission Level</th>
+          <th style="padding: 0.85rem 1rem;">Joined Date</th>
+          {% if can_manage %}
+          <th style="padding: 0.85rem 1.5rem; text-align: right;">Actions</th>
+          {% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in members %}
+        <tr style="border-bottom: 1px solid var(--border-subtle);">
+          <td style="padding: 1rem 1.5rem;">
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+              <div class="user-avatar" style="width: 34px; height: 34px; font-size: 0.85rem;">
+                {{ m.user.name[:1]|upper }}
+              </div>
+              <div>
+                <strong style="color: var(--text-primary); display: block;">{{ m.user.name }}</strong>
+                <span style="font-size: 0.78rem; color: var(--text-muted);">{{ m.user.email }}</span>
+              </div>
+            </div>
+          </td>
+          <td style="padding: 1rem;">
+            <span class="badge badge-neutral">{{ m.user.role|title }}</span>
+          </td>
+          <td style="padding: 1rem;">
+            {% if m.permission == 'editor' %}
+            <span class="badge badge-taken">Editor (Manage Care)</span>
+            {% else %}
+            <span class="badge badge-scheduled">Viewer (Read-Only)</span>
+            {% endif %}
+          </td>
+          <td style="padding: 1rem; color: var(--text-muted); font-size: 0.82rem;">
+            {{ m.joined_at.strftime('%b %d, %Y') if m.joined_at else 'Active' }}
+          </td>
+          {% if can_manage %}
+          <td style="padding: 1rem 1.5rem; text-align: right;">
+            {% if m.user.id != user.id and m.user.role != 'elder' %}
+            <div style="display: inline-flex; gap: 0.5rem; align-items: center;">
+              <!-- Toggle Permission Form -->
+              <form method="post" action="{{ url_for('update_member_permission', membership_id=m.id) }}" style="margin: 0;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="new_permission" value="{{ 'viewer' if m.permission == 'editor' else 'editor' }}">
+                <button type="submit" class="btn btn-secondary btn-sm" title="Change permissions">
+                  Make {{ 'Viewer' if m.permission == 'editor' else 'Editor' }}
+                </button>
+              </form>
+
+              <!-- Revoke Membership Form -->
+              <form method="post" action="{{ url_for('revoke_member', membership_id=m.id) }}" style="margin: 0;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Revoke {{ m.user.name }}\'s access to this care circle?')">
+                  Revoke
+                </button>
+              </form>
+            </div>
+            {% else %}
+            <span style="font-size: 0.8rem; color: var(--text-muted);">Self / Patient</span>
+            {% endif %}
+          </td>
+          {% endif %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Pending Invitations & Secure Passcodes -->
+<div class="card" style="margin-bottom: 2rem;">
+  <div class="card-header">
+    <div>
+      <h3 class="card-title">
+        <span>🔑</span> Active Invitations & Access Passcodes
+      </h3>
+      <div class="card-subtitle">Passcode-based access for prospective circle members</div>
+    </div>
+  </div>
+
+  <div>
+    {% if pending_invites %}
+      {% for inv in pending_invites %}
+      <div style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border-subtle); display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
+        <div>
+          <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.25rem;">
+            <strong style="font-size: 1rem; color: var(--forest-900);">{{ inv.invited_email }}</strong>
+            <span class="badge badge-scheduled">{{ inv.role|title }} ({{ inv.permission|title }})</span>
+          </div>
+          <div style="font-size: 0.82rem; color: var(--text-muted);">
+            Invited by {{ inv.inviter.name if inv.inviter else 'Owner' }} · Expires {{ inv.expires_at.strftime('%b %d, %Y') }}
+          </div>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 1rem;">
+          <div style="background: var(--surface-muted); border: 1px dashed var(--border-strong); padding: 0.4rem 0.85rem; border-radius: var(--radius-sm); font-family: monospace; font-size: 1rem; font-weight: 700; color: var(--forest-800);">
+            {{ inv.invite_code }}
+          </div>
+
+          {% if can_manage %}
+          <form method="post" action="{{ url_for('revoke_invitation', invite_id=inv.id) }}" style="margin: 0;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-danger btn-sm" type="submit" onclick="return confirm('Revoke this invitation?')">
+              Cancel Invite
+            </button>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div style="padding: 2rem 1.5rem; text-align: center; color: var(--text-muted); font-size: 0.9rem;">
+        No pending invitations. All invited members have joined.
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Care Circle Audit Trail -->
+<div class="card">
+  <div class="card-header">
+    <div>
+      <h3 class="card-title">
+        <span>📑</span> Care Circle Activity Audit Trail
+      </h3>
+      <div class="card-subtitle">Complete chronological history of collaborative actions</div>
+    </div>
+    <span class="badge badge-neutral">Full History</span>
+  </div>
+
+  <div class="activity-feed">
+    {% for act in full_activities %}
+    <div class="activity-item">
+      <div class="activity-dot"></div>
+      <div>
+        <div class="activity-text">{{ act.description }}</div>
+        <div class="activity-time">{{ act.created_at.strftime('%A, %B %d, %Y at %I:%M %p') }}</div>
+      </div>
+    </div>
+    {% else %}
+    <div style="padding: 2rem; text-align: center; color: var(--text-muted);">
+      No activity logs recorded yet.
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Modal: Invite Member -->
+<div class="modal-backdrop" id="inviteMemberModal">
+  <div class="modal-dialog">
+    <div class="modal-header">
+      <h3 class="modal-title">Invite Member to Care Circle</h3>
+      <button class="modal-close-btn" onclick="closeModal('inviteMemberModal')">&times;</button>
+    </div>
+    <form method="post" action="{{ url_for('care_circle') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="modal-body">
+        <p style="font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 1.25rem;">
+          Generate a secure passcode invitation. If the member already has an account, they are added immediately; otherwise, a passcode is generated for them to join when registering.
+        </p>
+
+        <div class="form-group">
+          <label class="form-label" for="invEmail">Member Email Address *</label>
+          <input class="form-control" type="email" id="invEmail" name="email" placeholder="relative@example.com" required>
+        </div>
+
+        <div class="form-row">
+          <div>
+            <label class="form-label" for="invRole">Role</label>
+            <select class="form-control" id="invRole" name="role">
+              <option value="family">Family Member</option>
+              <option value="caregiver">Caregiver / Aide</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label" for="invPerm">Access Level</label>
+            <select class="form-control" id="invPerm" name="permission">
+              <option value="viewer">Viewer — Read-only visibility</option>
+              <option value="editor">Editor — Manage meds & visits</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('inviteMemberModal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Generate Passcode & Send Invite</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

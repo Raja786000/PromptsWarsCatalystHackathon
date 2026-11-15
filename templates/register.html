@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+
+{% block title %}Create Account — CareCircle{% endblock %}
+
+{% block public_content %}
+<div class="auth-page-wrapper">
+  <div class="auth-box" style="max-width: 520px;">
+    <div class="auth-card">
+      <div style="text-align: center; margin-bottom: 1.5rem;">
+        <div class="brand-icon" style="margin: 0 auto 0.75rem;">✳</div>
+        <div class="brand-text" style="font-size: 1.5rem;">Care<span>Circle</span></div>
+        <p style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.25rem;">Create your private healthcare workspace</p>
+      </div>
+
+      <form method="post" action="{{ url_for('register') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="form-group">
+          <label class="form-label" for="regName">Full Name *</label>
+          <input class="form-control" type="text" id="regName" name="name" placeholder="e.g. Margaret Wilson" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="regEmail">Email Address *</label>
+          <input class="form-control" type="email" id="regEmail" name="email" placeholder="name@example.com" required>
+        </div>
+
+        <div class="form-group password-field-group">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+            <label class="form-label" for="regPassword" style="margin: 0;">Create Password * <small>(at least 8 characters)</small></label>
+            <button type="button" class="password-toggle-btn" style="background: none; border: none; font-size: 0.85rem; color: var(--text-muted); cursor: pointer;">👁️ Show</button>
+          </div>
+          <input class="form-control" type="password" id="regPassword" name="password" minlength="8" placeholder="Choose a secure password" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Select Your Role in Care *</label>
+          <div style="display: flex; flex-direction: column; gap: 0.6rem; margin-top: 0.4rem;">
+            <label style="display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.75rem; border: 1px solid var(--border-subtle); border-radius: var(--radius-md); cursor: pointer; background: var(--surface-card);">
+              <input type="radio" name="role" value="elder" checked style="margin-top: 0.25rem;">
+              <div>
+                <strong style="color: var(--text-primary); font-size: 0.92rem;">Older Adult / Patient</strong>
+                <div style="font-size: 0.8rem; color: var(--text-muted);">I want to manage my own medication schedule, appointments, and care circle.</div>
+              </div>
+            </label>
+
+            <label style="display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.75rem; border: 1px solid var(--border-subtle); border-radius: var(--radius-md); cursor: pointer; background: var(--surface-card);">
+              <input type="radio" name="role" value="caregiver" style="margin-top: 0.25rem;">
+              <div>
+                <strong style="color: var(--text-primary); font-size: 0.92rem;">Caregiver / Healthcare Aide</strong>
+                <div style="font-size: 0.8rem; color: var(--text-muted);">I assist an older adult with medication administration, clinic visits, and coordination.</div>
+              </div>
+            </label>
+
+            <label style="display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.75rem; border: 1px solid var(--border-subtle); border-radius: var(--radius-md); cursor: pointer; background: var(--surface-card);">
+              <input type="radio" name="role" value="family" style="margin-top: 0.25rem;">
+              <div>
+                <strong style="color: var(--text-primary); font-size: 0.92rem;">Family Member / Supporter</strong>
+                <div style="font-size: 0.8rem; color: var(--text-muted);">I want shared visibility into daily care routines and upcoming doctor visits.</div>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <!-- Optional Invitation Code / Passcode -->
+        <div class="form-group" style="margin-top: 1.25rem; padding-top: 1rem; border-top: 1px dashed var(--border-subtle);">
+          <label class="form-label" for="regInviteCode">
+            Care Circle Passcode / Invitation Code <small>(Optional)</small>
+          </label>
+          <input class="form-control" type="text" id="regInviteCode" name="invite_code" placeholder="e.g. CIRCLE-M789" style="text-transform: uppercase;">
+          <div class="form-helper">If a family member or patient shared an invitation code with you, enter it here to link your account immediately.</div>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-full btn-lg" style="margin-top: 1rem;">
+          Create CareCircle Account →
+        </button>
+      </form>
+
+      <div style="text-align: center; margin-top: 1.5rem; font-size: 0.88rem; color: var(--text-secondary);">
+        Already registered? <a href="{{ url_for('login') }}" style="font-weight: 600; color: var(--forest-700);">Sign In here</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

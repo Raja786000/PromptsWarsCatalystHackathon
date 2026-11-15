@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+
+{% block title %}Sign In — CareCircle{% endblock %}
+
+{% block public_content %}
+<div class="auth-page-wrapper">
+  <div class="auth-box">
+    <div class="auth-card">
+      <div style="text-align: center; margin-bottom: 1.5rem;">
+        <div class="brand-icon" style="margin: 0 auto 0.75rem;">✳</div>
+        <div class="brand-text" style="font-size: 1.5rem;">Care<span>Circle</span></div>
+        <p style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.25rem;">Sign in to your private care space</p>
+      </div>
+
+      <form method="post" action="{{ url_for('login') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="form-group">
+          <label class="form-label" for="loginEmail">Email Address</label>
+          <input class="form-control" type="email" id="loginEmail" name="email" placeholder="name@example.com" required autofocus>
+        </div>
+
+        <div class="form-group password-field-group">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+            <label class="form-label" for="loginPassword" style="margin: 0;">Password</label>
+            <button type="button" class="password-toggle-btn" style="background: none; border: none; font-size: 0.85rem; color: var(--text-muted); cursor: pointer;" title="Show or hide password">👁️ Show</button>
+          </div>
+          <input class="form-control" type="password" id="loginPassword" name="password" placeholder="Enter your password" required>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-full btn-lg" style="margin-top: 0.5rem;">
+          Sign In to CareCircle →
+        </button>
+      </form>
+
+      <!-- Instant Demo Persona Autofill -->
+      <div style="margin-top: 1.75rem; padding: 1.15rem; background-color: var(--sage-50); border: 1px dashed var(--sage-300); border-radius: var(--radius-md);">
+        <div style="font-size: 0.8rem; font-weight: 700; color: var(--forest-800); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.25rem;">
+          Try Demo Accounts (Password: Care123!)
+        </div>
+        <p style="font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 0.75rem;">
+          Select any persona below to autofill demonstration credentials:
+        </p>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem;">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="fillLogin('elder@carecircle.demo')">
+            👵 Elder
+          </button>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="fillLogin('caregiver@carecircle.demo')">
+            🩺 Caregiver
+          </button>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="fillLogin('family@carecircle.demo')">
+            ❤️ Family
+          </button>
+        </div>
+      </div>
+
+      <div style="text-align: center; margin-top: 1.5rem; font-size: 0.88rem; color: var(--text-secondary);">
+        Need a new account? <a href="{{ url_for('register') }}" style="font-weight: 600; color: var(--forest-700);">Create an account</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

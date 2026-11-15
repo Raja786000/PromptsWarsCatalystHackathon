@@ -1,0 +1,131 @@
+{% extends 'base.html' %}
+
+{% block title %}CareCircle — Intelligent Elderly Care & Medication Management Platform{% endblock %}
+
+{% block public_content %}
+<!-- Hero Section -->
+<section class="landing-hero-section">
+  <div class="landing-pill">
+    <span>✳</span> PromptWars × Catalyst Healthcare Challenge
+  </div>
+  <h1>Better Care. Connected Families. <span>Healthier Living.</span></h1>
+  <p>
+    An intelligent healthcare ecosystem designed to help older adults manage daily medications and medical appointments independently, while keeping family members and caregivers coordinated and informed.
+  </p>
+  
+  <div class="landing-cta-group">
+    <a class="btn btn-primary btn-lg" href="{{ url_for('login') }}">
+      Launch Live Demo Workspace →
+    </a>
+    <a class="btn btn-secondary btn-lg" href="{{ url_for('register') }}">
+      Create a Free Account
+    </a>
+  </div>
+
+  <!-- Interactive Demo Account Launcher Pill -->
+  <div style="margin-top: 1.5rem;">
+    <div style="font-size: 0.85rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.6rem;">
+      Explore with Instant Demo Personas (Password: Care123!)
+    </div>
+    <div class="demo-role-pills-bar">
+      <span style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 600;">Demo Patient: Margaret Wilson</span>
+      <span style="color: var(--border-strong);">|</span>
+      <form method="post" action="{{ url_for('quick_demo_login') }}" style="display: inline-flex; gap: 0.5rem; margin: 0;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" name="email" value="elder@carecircle.demo" class="demo-role-btn" title="Sign in as Margaret Wilson (Elder)">
+          👵 Elder Account
+        </button>
+        <button type="submit" name="email" value="caregiver@carecircle.demo" class="demo-role-btn" title="Sign in as Alex Morgan (Caregiver - Editor)">
+          🩺 Caregiver (Editor)
+        </button>
+        <button type="submit" name="email" value="family@carecircle.demo" class="demo-role-btn" title="Sign in as Jamie Wilson (Family - Viewer)">
+          ❤️ Family (Viewer)
+        </button>
+      </form>
+    </div>
+  </div>
+</section>
+
+<!-- Core Product Value Pillars -->
+<section class="pillars-section">
+  <div style="text-align: center; max-width: 650px; margin: 0 auto;">
+    <span style="font-size: 0.8rem; font-weight: 800; color: var(--forest-600); text-transform: uppercase; letter-spacing: 0.1em;">Designed For Real Life</span>
+    <h2 style="font-size: 2.1rem; margin-top: 0.4rem;">Care feels lighter when it's shared.</h2>
+    <p>CareCircle resolves the fragmentation of daily senior care through a shared, permission-aware digital sanctuary.</p>
+  </div>
+
+  <div class="pillars-grid">
+    <div class="pillar-card">
+      <div class="pillar-icon-box">👵</div>
+      <h3>Independence & Dignity</h3>
+      <p>Older adults remain at the center of their care choices. High-contrast large typography, speech synthesis voice reading, and simple one-tap confirmations make routine management easy and empowering.</p>
+    </div>
+
+    <div class="pillar-card">
+      <div class="pillar-icon-box">🩺</div>
+      <h3>Collaborative Coordination</h3>
+      <p>Authorized caregivers manage dosages, coordinate clinical visits, assign care tasks, track refills, and review doctor recommendations in one central, audit-logged workspace.</p>
+    </div>
+
+    <div class="pillar-card">
+      <div class="pillar-icon-box">❤️</div>
+      <h3>Family Reassurance</h3>
+      <p>Family members gain real-time visibility into taken doses and scheduled appointments without intrusive interrogations. Proactive email reminders alert the circle when medications are missed.</p>
+    </div>
+  </div>
+</section>
+
+<!-- How CareCircle Works: 3-Step Process -->
+<section style="background-color: var(--surface-card); border-top: 1px solid var(--border-subtle); border-bottom: 1px solid var(--border-subtle); padding: 5rem 2rem;">
+  <div style="max-width: 1100px; margin: 0 auto;">
+    <div style="text-align: center; margin-bottom: 3.5rem;">
+      <span style="font-size: 0.8rem; font-weight: 800; color: var(--forest-600); text-transform: uppercase; letter-spacing: 0.1em;">Simple & Seamless</span>
+      <h2 style="font-size: 2.1rem; margin-top: 0.4rem;">How CareCircle Works</h2>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 2.5rem;">
+      <div style="display: flex; flex-direction: column; align-items: flex-start;">
+        <div style="width: 44px; height: 44px; border-radius: 50%; background-color: var(--forest-800); color: white; display: grid; place-items: center; font-weight: 800; font-size: 1.1rem; margin-bottom: 1.25rem;">1</div>
+        <h3 style="font-size: 1.2rem; margin-bottom: 0.5rem;">Create the Medication Plan</h3>
+        <p style="font-size: 0.95rem; color: var(--text-secondary);">Input daily prescriptions, reminder times, dosages, and clinician instructions. Use our smart prescription scanner to parse details quickly.</p>
+      </div>
+
+      <div style="display: flex; flex-direction: column; align-items: flex-start;">
+        <div style="width: 44px; height: 44px; border-radius: 50%; background-color: var(--forest-800); color: white; display: grid; place-items: center; font-weight: 800; font-size: 1.1rem; margin-bottom: 1.25rem;">2</div>
+        <h3 style="font-size: 1.2rem; margin-bottom: 0.5rem;">Connect the Care Circle</h3>
+        <p style="font-size: 0.95rem; color: var(--text-secondary);">Share a secure invitation passcode with family and caregivers. Assign tailored permissions: Editor for medical aides, Viewer for family.</p>
+      </div>
+
+      <div style="display: flex; flex-direction: column; align-items: flex-start;">
+        <div style="width: 44px; height: 44px; border-radius: 50%; background-color: var(--forest-800); color: white; display: grid; place-items: center; font-weight: 800; font-size: 1.1rem; margin-bottom: 1.25rem;">3</div>
+        <h3 style="font-size: 1.2rem; margin-bottom: 0.5rem;">Stay Protected & In Sync</h3>
+        <p style="font-size: 0.95rem; color: var(--text-secondary);">Track daily adherence streaks, receive timely alerts for upcoming doses, coordinate clinic visits, and generate clinical care handover reports.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Security, Privacy & Compliance Safeguards -->
+<section style="padding: 4rem 2rem; max-width: 1000px; margin: 0 auto; text-align: center;">
+  <span style="font-size: 0.8rem; font-weight: 800; color: var(--forest-600); text-transform: uppercase; letter-spacing: 0.1em;">Safety & Privacy First</span>
+  <h2 style="font-size: 1.8rem; margin: 0.5rem 0 1rem;">Healthcare-Grade Security Architecture</h2>
+  <p style="font-size: 1rem; color: var(--text-secondary); max-width: 720px; margin: 0 auto 2.5rem;">
+    Senior healthcare records require privacy and reliability. CareCircle enforces granular server-side authorization, cryptographic password hashing, session isolation, CSRF protection, and audit logs.
+  </p>
+
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; text-align: left;">
+    <div style="background: var(--surface-card); padding: 1.25rem; border-radius: var(--radius-md); border: 1px solid var(--border-subtle);">
+      <div style="font-weight: 700; color: var(--forest-800); margin-bottom: 0.25rem;">🔒 Passcode-Based Access</div>
+      <div style="font-size: 0.85rem; color: var(--text-muted);">Circle invitations expire automatically and require authorized acceptance.</div>
+    </div>
+    <div style="background: var(--surface-card); padding: 1.25rem; border-radius: var(--radius-md); border: 1px solid var(--border-subtle);">
+      <div style="font-weight: 700; color: var(--forest-800); margin-bottom: 0.25rem;">🛡️ Granular Permissions</div>
+      <div style="font-size: 0.85rem; color: var(--text-muted);">Strict server-side role scoping ensures viewers cannot edit prescriptions.</div>
+    </div>
+    <div style="background: var(--surface-card); padding: 1.25rem; border-radius: var(--radius-md); border: 1px solid var(--border-subtle);">
+      <div style="font-weight: 700; color: var(--forest-800); margin-bottom: 0.25rem;">📑 Tamper-Evident Audit</div>
+      <div style="font-size: 0.85rem; color: var(--text-muted);">All dose logs, record modifications, and task updates track the author.</div>
+    </div>
+  </div>
+</section>
+{% endblock %}

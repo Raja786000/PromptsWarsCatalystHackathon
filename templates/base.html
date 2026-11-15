@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#12382c">
+  <title>{% block title %}CareCircle — Intelligent Elderly Care & Medication Management{% endblock %}</title>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Chart.js for Adherence Analytics (with offline fallback if CDN blocked) -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <!-- CareCircle Design System Stylesheet -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <!-- Accessibility Skip Link -->
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  {% if user %}
+  <!-- Authenticated Application Shell -->
+  <div class="app-layout">
+    <!-- Collapsible Sidebar Navigation -->
+    <aside class="app-sidebar" id="appSidebar" aria-label="Main Navigation">
+      <div class="sidebar-header">
+        <a class="brand-link" href="{{ url_for('dashboard') }}">
+          <div class="brand-icon">✳</div>
+          <div>
+            <div class="brand-text">Care<span>Circle</span></div>
+            <span class="brand-tagline">Elder Care & Meds</span>
+          </div>
+        </a>
+      </div>
+
+      {% if patient %}
+      <!-- Active Patient Profile Badge in Sidebar -->
+      <div class="patient-context-card" title="Current Care Profile: {{ patient.name }}">
+        <div class="patient-context-avatar">{{ patient.name[:1]|upper }}</div>
+        <div class="patient-context-info">
+          <div class="patient-context-label">Care Recipient</div>
+          <div class="patient-context-name">{{ patient.name }}</div>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Primary Sidebar Navigation Links -->
+      <nav class="sidebar-nav">
+        <div class="nav-section-label">Care Workspace</div>
+        
+        <a class="nav-item {{ 'active' if request.endpoint == 'dashboard' }}" href="{{ url_for('dashboard') }}">
+          <span class="nav-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+          </span>
+          <span>Overview</span>
+        </a>
+
+        <a class="nav-item {{ 'active' if request.endpoint == 'medications' }}" href="{{ url_for('medications') }}">
+          <span class="nav-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"></path><path d="m8.5 8.5 7 7"></path></svg>
+          </span>
+          <span>Medications</span>
+        </a>
+
+        <a class="nav-item {{ 'active' if request.endpoint == 'calendar' }}" href="{{ url_for('calendar') }}">
+          <span class="nav-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"></rect><line x1="16" x2="16" y1="2" y2="6"></line><line x1="8" x2="8" y1="2" y2="6"></line><line x1="3" x2="21" y1="10" y2="10"></line></svg>
+          </span>
+          <span>Med Calendar</span>
+        </a>
+
+        <a class="nav-item {{ 'active' if request.endpoint == 'analytics' }}" href="{{ url_for('analytics') }}">
+          <span class="nav-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"></path><path d="m19 9-5 5-4-4-3 3"></path></svg>
+          </span>
+          <span>Adherence Analytics</span>
+        </a>
+
+        <a class="nav-item {{ 'active' if request.endpoint == 'appointments' }}" href="{{ url_for('appointments') }}">
+          <span class="nav-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+          </span>
+          <span>Appointments</span>
+        </a>
+
+        <div class="nav-section-label">Team & Coordination</div>
+
+        <a class="nav-item {{ 'active' if request.endpoint == 'care_circle' }}" href="{{ url_for('care_circle') }}">
+          <span class="nav-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+          </span>
+          <span>Care Circle</span>
+        </a>
+
+        <a class="nav-item {{ 'active' if request.endpoint == 'tasks' }}" href="{{ url_for('tasks') }}">
+          <span class="nav-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+          </span>
+          <span>Care Tasks</span>
+        </a>
+
+        <a class="nav-item {{ 'active' if request.endpoint == 'records' }}" href="{{ url_for('records') }}">
+          <span class="nav-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" x2="8" y1="13" y2="13"></line><line x1="16" x2="8" y1="17" y2="17"></line><line x1="10" x2="8" y1="9" y2="9"></line></svg>
+          </span>
+          <span>Health Vault</span>
+        </a>
+
+        <a class="nav-item {{ 'active' if request.endpoint == 'journal' }}" href="{{ url_for('journal') }}">
+          <span class="nav-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"></path><path d="M6 6h10"></path><path d="M6 10h10"></path></svg>
+          </span>
+          <span>Health Journal</span>
+        </a>
+
+        <a class="nav-item {{ 'active' if request.endpoint == 'notifications' }}" href="{{ url_for('notifications') }}">
+          <span class="nav-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path></svg>
+          </span>
+          <span>Notifications</span>
+          {% if unread_notifs_count is defined and unread_notifs_count > 0 %}
+          <span class="nav-badge">{{ unread_notifs_count }}</span>
+          {% endif %}
+        </a>
+      </nav>
+
+      <!-- Sidebar User Profile Footer -->
+      <div class="sidebar-footer">
+        <div class="user-profile-strip">
+          <div class="user-avatar">{{ user.name[:1]|upper }}</div>
+          <div class="user-info">
+            <div class="user-name">{{ user.name }}</div>
+            <div class="user-role-tag">{{ user.role|title }}</div>
+          </div>
+          <a class="btn-logout-mini" href="{{ url_for('logout') }}" title="Sign out of CareCircle">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" x2="9" y1="12" y2="12"></line></svg>
+          </a>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content Container -->
+    <main class="app-main" id="main-content">
+      <!-- Top Navigation Bar -->
+      <header class="app-topbar">
+        <div class="topbar-left">
+          <button class="sidebar-toggle-btn" id="sidebarToggleBtn" aria-label="Toggle Navigation Drawer">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="20" y1="12" y2="12"></line><line x1="4" x2="20" y1="6" y2="6"></line><line x1="4" x2="20" y1="18" y2="18"></line></svg>
+          </button>
+          
+          <div class="breadcrumb-trail">
+            <a href="{{ url_for('dashboard') }}">CareCircle</a>
+            <span class="breadcrumb-separator">/</span>
+            <span class="breadcrumb-current">{% block breadcrumb %}Dashboard{% endblock %}</span>
+          </div>
+        </div>
+
+        <div class="topbar-right">
+          <!-- Elderly Accessibility Controls (Text Scaling & Contrast) -->
+          <div class="accessibility-controls" title="Text size scaling for improved readability">
+            <button class="acc-btn active" data-scale="1" title="Standard text size">A</button>
+            <button class="acc-btn" data-scale="1.15" title="Medium enlarged text">A+</button>
+            <button class="acc-btn" data-scale="1.30" title="Large enlarged text">A++</button>
+          </div>
+
+          <button class="acc-contrast-toggle" id="toggleContrastBtn" title="Toggle high contrast mode for readability">
+            <span>◐</span> Contrast
+          </button>
+
+          <!-- Notifications Bell -->
+          <a class="notification-bell-btn" href="{{ url_for('notifications') }}" title="Notification Center">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path></svg>
+            {% if unread_notifs_count is defined and unread_notifs_count > 0 %}
+            <span class="notification-badge">{{ unread_notifs_count }}</span>
+            {% endif %}
+          </a>
+
+          <!-- Profile Link -->
+          <a class="user-avatar" href="{{ url_for('profile') }}" title="Account & Preferences">
+            {{ user.name[:1]|upper }}
+          </a>
+        </div>
+      </header>
+
+      <!-- Page Content Area -->
+      <div class="page-container">
+        <!-- Flash Alert Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="flash-container">
+          {% for category, message in messages %}
+          <div class="flash-message {{ category }}" role="alert">
+            <span>{{ message }}</span>
+            <button class="flash-close-btn" onclick="this.parentElement.remove()" aria-label="Dismiss message">&times;</button>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+      </div>
+    </main>
+
+    <!-- Mobile Bottom Navigation Bar (Phone Screens) -->
+    <nav class="mobile-bottom-nav" aria-label="Mobile Navigation">
+      <a class="mobile-nav-item {{ 'active' if request.endpoint == 'dashboard' }}" href="{{ url_for('dashboard') }}">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>
+        <span>Home</span>
+      </a>
+      <a class="mobile-nav-item {{ 'active' if request.endpoint == 'medications' }}" href="{{ url_for('medications') }}">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"></path></svg>
+        <span>Meds</span>
+      </a>
+      <a class="mobile-nav-item {{ 'active' if request.endpoint == 'calendar' }}" href="{{ url_for('calendar') }}">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"></rect><line x1="16" x2="16" y1="2" y2="6"></line><line x1="8" x2="8" y1="2" y2="6"></line></svg>
+        <span>Calendar</span>
+      </a>
+      <a class="mobile-nav-item {{ 'active' if request.endpoint == 'care_circle' }}" href="{{ url_for('care_circle') }}">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg>
+        <span>Circle</span>
+      </a>
+      <a class="mobile-nav-item {{ 'active' if request.endpoint == 'tasks' }}" href="{{ url_for('tasks') }}">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"></path></svg>
+        <span>Tasks</span>
+      </a>
+    </nav>
+  </div>
+
+  <!-- Universal Dose Confirmation Modal (With Optional Note) -->
+  <div class="modal-backdrop" id="doseConfirmModal">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title">Record Dose Status</h3>
+        <button class="modal-close-btn" onclick="closeModal('doseConfirmModal')" aria-label="Close dialog">&times;</button>
+      </div>
+      <form id="doseConfirmForm" method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="scheduled_for" id="doseModalSched">
+        <input type="hidden" name="med_id" id="doseModalMedId">
+        <input type="hidden" name="status" id="doseModalStatus">
+
+        <div class="modal-body">
+          <div style="margin-bottom: 1.25rem;">
+            <div style="font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; margin-bottom: 0.25rem;">Medication</div>
+            <h3 id="doseModalMedName" style="color: var(--forest-900); font-size: 1.3rem;">Medication Name</h3>
+            <div style="display: flex; gap: 0.75rem; align-items: center; margin-top: 0.4rem;">
+              <span id="doseModalStatusBadge" class="badge badge-success">Taken</span>
+              <span style="font-size: 0.85rem; color: var(--text-secondary);" id="doseModalTime">08:00 AM</span>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="doseNoteInput">Optional Observation / Note <small>(e.g. taken with food, mild drowsiness)</small></label>
+            <input class="form-control" id="doseNoteInput" name="note" placeholder="Enter optional notes for the care circle…">
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('doseConfirmModal')">Cancel</button>
+          <button type="submit" class="btn btn-primary">Confirm & Log Dose</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {% else %}
+  <!-- Public Layout for Landing & Authentication -->
+  <header class="public-nav">
+    <a class="brand-link" href="{{ url_for('index') }}">
+      <div class="brand-icon">✳</div>
+      <div>
+        <div class="brand-text">Care<span>Circle</span></div>
+        <span class="brand-tagline">Better Care. Connected Families.</span>
+      </div>
+    </a>
+    <div style="display: flex; gap: 0.75rem; align-items: center;">
+      <a class="btn btn-secondary btn-sm" href="{{ url_for('login') }}">Sign In</a>
+      <a class="btn btn-primary btn-sm" href="{{ url_for('register') }}">Get Started</a>
+    </div>
+  </header>
+
+  <!-- Flash Messages on Public Pages -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+  <div style="max-width: 600px; margin: 1.5rem auto 0; padding: 0 1rem;">
+    {% for category, message in messages %}
+    <div class="flash-message {{ category }}" role="alert">
+      <span>{{ message }}</span>
+      <button class="flash-close-btn" onclick="this.parentElement.remove()">&times;</button>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% endwith %}
+
+  {% block public_content %}{% endblock %}
+
+  <footer style="text-align: center; padding: 3rem 1rem; color: var(--text-muted); font-size: 0.85rem; border-top: 1px solid var(--border-subtle); background: var(--surface-card);">
+    <div style="max-width: 800px; margin: 0 auto;">
+      <p style="font-weight: 600; color: var(--forest-800); margin-bottom: 0.5rem;">CareCircle — Intelligent Elderly Care & Medication Management Platform</p>
+      <p style="font-size: 0.78rem; line-height: 1.6;">CareCircle is a care coordination prototype created for the PromptWars × Catalyst hackathon. It organizes clinician-provided medication plans and schedules and facilitates family care coordination. It is not a certified medical device, does not prescribe treatments, and does not alter medical advice.</p>
+      <p style="font-size: 0.75rem; margin-top: 1rem;">&copy; 2026 CareCircle. Better Care. Connected Families. Healthier Living.</p>
+    </div>
+  </footer>
+  {% endif %}
+
+  <!-- Core JavaScript -->
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

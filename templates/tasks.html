@@ -1,0 +1,252 @@
+{% extends 'base.html' %}
+
+{% block title %}Caregiver Task Management — CareCircle{% endblock %}
+{% block breadcrumb %}Care Tasks{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-title">
+    <h1>Care Tasks Management</h1>
+    <p>Delegate and coordinate actionable care responsibilities for {{ patient.name }}.</p>
+  </div>
+  {% if can_manage %}
+  <div class="page-header-actions">
+    <button class="btn btn-primary" onclick="openModal('createTaskModal')">
+      <span>+</span> Create Care Task
+    </button>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Tabs & Status Filter -->
+<div class="card" style="margin-bottom: 1.5rem;">
+  <div style="padding: 1rem 1.5rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
+    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+      <a class="btn btn-sm {{ 'btn-primary' if status_filter == 'all' else 'btn-secondary' }}" href="{{ url_for('tasks', status='all') }}">
+        All Tasks ({{ all_tasks|length }})
+      </a>
+      <a class="btn btn-sm {{ 'btn-primary' if status_filter == 'pending' else 'btn-secondary' }}" href="{{ url_for('tasks', status='pending') }}">
+        Pending ({{ pending_tasks|length }})
+      </a>
+      <a class="btn btn-sm {{ 'btn-primary' if status_filter == 'completed' else 'btn-secondary' }}" href="{{ url_for('tasks', status='completed') }}">
+        Completed ({{ completed_tasks|length }})
+      </a>
+    </div>
+
+    <div style="width: 280px;">
+      <input type="text" id="taskSearchInput" class="form-control" placeholder="Search tasks by title…" oninput="filterTasks(this.value)">
+    </div>
+  </div>
+</div>
+
+<!-- Task List -->
+<div style="display: flex; flex-direction: column; gap: 1rem;" id="tasksContainer">
+  {% if filtered_tasks %}
+    {% for task in filtered_tasks %}
+    <div class="card task-card-item" data-title="{{ task.title.lower() }}">
+      <div style="padding: 1.25rem 1.5rem; display: flex; align-items: flex-start; justify-content: space-between; gap: 1.25rem; flex-wrap: wrap;">
+        <!-- Left: Status Checkbox & Title Details -->
+        <div style="display: flex; align-items: flex-start; gap: 1rem; flex: 1; min-width: 280px;">
+          {% if can_manage %}
+          <form method="post" action="{{ url_for('toggle_task_status', task_id=task.id) }}" style="margin: 0; margin-top: 0.2rem;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-sm {{ 'btn-success' if task.status == 'Completed' else 'btn-secondary' }}" style="padding: 0.35rem 0.65rem;" title="Toggle task status">
+              {{ '✓' if task.status == 'Completed' else '○' }}
+            </button>
+          </form>
+          {% else %}
+          <span style="font-size: 1.2rem; color: var(--forest-700);">{{ '✓' if task.status == 'Completed' else '○' }}</span>
+          {% endif %}
+
+          <div style="flex: 1; min-width: 0;">
+            <div style="display: flex; align-items: center; gap: 0.65rem; margin-bottom: 0.25rem;">
+              <h3 style="font-size: 1.1rem; color: var(--forest-900); {% if task.status == 'Completed' %}text-decoration: line-through; opacity: 0.7;{% endif %}">
+                {{ task.title }}
+              </h3>
+              <span class="badge badge-{{ task.priority.lower() }}">{{ task.priority }}</span>
+              <span class="badge badge-{{ 'completed' if task.status == 'Completed' else 'scheduled' }}">{{ task.status }}</span>
+            </div>
+
+            {% if task.description %}
+            <p style="font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 0.5rem;">
+              {{ task.description }}
+            </p>
+            {% endif %}
+
+            <div style="font-size: 0.8rem; color: var(--text-muted); display: flex; gap: 1rem; flex-wrap: wrap;">
+              <span>📅 Due: <strong>{{ task.due_date or 'No date set' }}</strong></span>
+              <span>👤 Assigned: <strong>{{ task.assignee.name if task.assignee else 'Unassigned' }}</strong></span>
+              {% if task.completed_at %}
+              <span style="color: var(--success-text);">✓ Finished: {{ task.completed_at.strftime('%b %d, %I:%M %p') }}</span>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Actions -->
+        {% if can_manage %}
+        <div style="display: flex; align-items: center; gap: 0.5rem; align-self: center;">
+          <button class="btn btn-secondary btn-sm" onclick="openEditTaskModal('{{ task.id }}', '{{ task.title }}', '{{ task.description or '' }}', '{{ task.priority }}', '{{ task.due_date or '' }}', '{{ task.assigned_to_id or '' }}')">
+            Edit
+          </button>
+          <form method="post" action="{{ url_for('delete_task', task_id=task.id) }}" style="margin: 0;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-danger btn-sm" type="submit" onclick="return confirm('Delete this care task?')">
+              Delete
+            </button>
+          </form>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  {% else %}
+    <div class="empty-state">
+      <div class="empty-state-icon">📋</div>
+      <h3>No care tasks found</h3>
+      <p>Assign tasks like picking up pharmacy refills, coordinating wheelchair transport, or reviewing lab tests.</p>
+      {% if can_manage %}
+      <button class="btn btn-primary btn-sm" onclick="openModal('createTaskModal')">+ Create Care Task</button>
+      {% endif %}
+    </div>
+  {% endif %}
+</div>
+
+<!-- Modal 1: Create Task -->
+<div class="modal-backdrop" id="createTaskModal">
+  <div class="modal-dialog">
+    <div class="modal-header">
+      <h3 class="modal-title">Create Care Task</h3>
+      <button class="modal-close-btn" onclick="closeModal('createTaskModal')">&times;</button>
+    </div>
+    <form method="post" action="{{ url_for('tasks') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label" for="taskTitle">Task Title *</label>
+          <input class="form-control" id="taskTitle" name="title" placeholder="e.g. Pick up Amlodipine refill from pharmacy" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="taskDesc">Description & Instructions</label>
+          <textarea class="form-control" id="taskDesc" name="description" placeholder="Add specific directions or locations…"></textarea>
+        </div>
+
+        <div class="form-row">
+          <div>
+            <label class="form-label" for="taskPriority">Priority</label>
+            <select class="form-control" id="taskPriority" name="priority">
+              <option value="Low">Low</option>
+              <option value="Medium" selected>Medium</option>
+              <option value="High">High</option>
+              <option value="Urgent">Urgent</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label" for="taskDue">Due Date</label>
+            <input class="form-control" type="date" id="taskDue" name="due_date">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="taskAssignee">Assign Responsibility To</label>
+          <select class="form-control" id="taskAssignee" name="assigned_to_id">
+            <option value="">Unassigned</option>
+            <option value="{{ user.id }}">Myself ({{ user.name }})</option>
+            {% for m in members %}
+            {% if m.user.id != user.id %}
+            <option value="{{ m.user.id }}">{{ m.user.name }} ({{ m.user.role|title }})</option>
+            {% endif %}
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('createTaskModal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Create Task</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal 2: Edit Task -->
+<div class="modal-backdrop" id="editTaskModal">
+  <div class="modal-dialog">
+    <div class="modal-header">
+      <h3 class="modal-title">Edit Care Task</h3>
+      <button class="modal-close-btn" onclick="closeModal('editTaskModal')">&times;</button>
+    </div>
+    <form id="editTaskForm" method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label" for="editTaskTitle">Task Title *</label>
+          <input class="form-control" id="editTaskTitle" name="title" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="editTaskDesc">Description</label>
+          <textarea class="form-control" id="editTaskDesc" name="description"></textarea>
+        </div>
+
+        <div class="form-row">
+          <div>
+            <label class="form-label" for="editTaskPriority">Priority</label>
+            <select class="form-control" id="editTaskPriority" name="priority">
+              <option value="Low">Low</option>
+              <option value="Medium">Medium</option>
+              <option value="High">High</option>
+              <option value="Urgent">Urgent</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label" for="editTaskDue">Due Date</label>
+            <input class="form-control" type="date" id="editTaskDue" name="due_date">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="editTaskAssignee">Assignee</label>
+          <select class="form-control" id="editTaskAssignee" name="assigned_to_id">
+            <option value="">Unassigned</option>
+            <option value="{{ user.id }}">Myself ({{ user.name }})</option>
+            {% for m in members %}
+            {% if m.user.id != user.id %}
+            <option value="{{ m.user.id }}">{{ m.user.name }} ({{ m.user.role|title }})</option>
+            {% endif %}
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('editTaskModal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save Changes</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function filterTasks(query) {
+  const q = query.toLowerCase().trim();
+  document.querySelectorAll('.task-card-item').forEach(card => {
+    const title = card.dataset.title || '';
+    card.style.display = title.includes(q) ? '' : 'none';
+  });
+}
+
+function openEditTaskModal(id, title, desc, priority, due, assignee) {
+  document.getElementById('editTaskForm').action = `/tasks/edit/${id}`;
+  document.getElementById('editTaskTitle').value = title;
+  document.getElementById('editTaskDesc').value = desc;
+  document.getElementById('editTaskPriority').value = priority;
+  document.getElementById('editTaskDue').value = due;
+  document.getElementById('editTaskAssignee').value = assignee;
+  openModal('editTaskModal');
+}
+</script>
+{% endblock %}
